@@ -1,10 +1,11 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost';
+// Use empty string to call via nginx proxy (same origin)
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
-// User Service API (Port 8081)
+// User Service API - call via nginx proxy
 const userAPI = axios.create({
-  baseURL: `${API_BASE_URL}:8081/api`,
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -22,9 +23,9 @@ userAPI.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Product Service API (Port 8082)
+// Product Service API - call via nginx proxy
 const productAPI = axios.create({
-  baseURL: `${API_BASE_URL}:8082/api`,
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,9 +43,9 @@ productAPI.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Inventory Service API (Port 8083)
+// Inventory Service API - call via nginx proxy
 const inventoryAPI = axios.create({
-  baseURL: `${API_BASE_URL}:8083/api`,
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
