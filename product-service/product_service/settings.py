@@ -55,9 +55,9 @@ WSGI_APPLICATION = 'product_service.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'productdb',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'NAME': 'productservice_db',
+        'USER': 'productservice',
+        'PASSWORD': 'password123',
         'HOST': 'postgres-product',
         'PORT': '5432',
     }
