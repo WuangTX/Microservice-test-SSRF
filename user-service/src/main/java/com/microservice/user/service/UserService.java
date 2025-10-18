@@ -1,6 +1,9 @@
 package com.microservice.user.service;
 
 import java.util.List;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.OutputStream;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -43,8 +46,49 @@ public class UserService {
 
         userRepository.save(user);
 
+        // SSRF VULNERABILITY: Webhook notification sau khi tạo user
+        // Gửi thông báo đến webhook URL (không validate, attacker có thể tấn công internal services)
+        if (request.getWebhookUrl() != null && !request.getWebhookUrl().isEmpty()) {
+            sendWebhookNotification(request.getWebhookUrl(), user);
+        }
+
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
         return new AuthResponse(token, user.getUsername(), user.getRole());
+    }
+
+    /**
+     * SSRF VULNERABILITY: Gửi POST request đến webhook URL
+     * Không validate URL → attacker có thể:
+     * - Scan internal network (http://192.168.1.1:8080)
+     * - Access internal services (http://localhost:5432)
+     * - Read cloud metadata (http://169.254.169.254/latest/meta-data/)
+     */
+    private void sendWebhookNotification(String webhookUrl, User user) {
+        try {
+            URL url = new URL(webhookUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            String payload = String.format(
+                "{\"event\":\"user.registered\",\"user\":{\"username\":\"%s\",\"email\":\"%s\",\"role\":\"%s\"}}",
+                user.getUsername(), user.getEmail(), user.getRole()
+            );
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(payload.getBytes());
+                os.flush();
+            }
+
+            int responseCode = conn.getResponseCode();
+            System.out.println("Webhook notification sent to " + webhookUrl + " - Response: " + responseCode);
+            
+        } catch (Exception e) {
+            System.err.println("Failed to send webhook: " + e.getMessage());
+        }
     }
 
     public AuthResponse login(LoginRequest request) {

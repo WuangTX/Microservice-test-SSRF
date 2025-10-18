@@ -82,20 +82,108 @@ def get_all_inventory(product_id):
 
 @app.route('/api/inventory/<int:product_id>/<size>', methods=['PUT'])
 def update_inventory(product_id, size):
-    """Update inventory for a specific product and size"""
+    """
+    Update inventory for a specific product and size
+    VULNERABLE: Accepts callback_url to notify after inventory update
+    """
     data = request.get_json()
     quantity = data.get('quantity', 0)
+    callback_url = data.get('callback_url')  # SSRF vulnerability
     
     if product_id not in inventory:
         inventory[product_id] = {}
     
+    # Update inventory
+    old_quantity = inventory[product_id].get(size, 0)
     inventory[product_id][size] = quantity
+    
+    # VULNERABLE: Call callback_url without validation
+    if callback_url:
+        try:
+            print(f"[SSRF VULNERABILITY] Notifying callback: {callback_url}")
+            
+            # Send inventory update notification
+            callback_data = {
+                'product_id': product_id,
+                'size': size,
+                'old_quantity': old_quantity,
+                'new_quantity': quantity,
+                'timestamp': 'now'
+            }
+            
+            # VULNERABLE: POST to user-provided URL
+            response = requests.post(callback_url, json=callback_data, timeout=5)
+            print(f"[SSRF VULNERABILITY] Callback response: {response.status_code}")
+            
+        except Exception as e:
+            print(f"[SSRF VULNERABILITY] Callback error: {str(e)}")
     
     return jsonify({
         'product_id': product_id,
         'size': size,
         'quantity': quantity,
         'message': 'Inventory updated successfully'
+    }), 200
+
+
+@app.route('/api/inventory/purchase', methods=['POST'])
+def purchase_product():
+    """
+    Purchase product - decrease inventory
+    VULNERABLE: Accepts callback_url in request body for payment gateway notification
+    Realistic scenario: Sau khi trừ kho, gửi callback đến payment gateway
+    """
+    data = request.get_json()
+    product_id = data.get('product_id')
+    size = data.get('size')
+    quantity_to_buy = data.get('quantity', 1)
+    callback_url = data.get('callback_url')  # SSRF vulnerability in request body
+    
+    if product_id not in inventory or size not in inventory[product_id]:
+        return jsonify({'error': 'Product not found'}), 404
+    
+    current_stock = inventory[product_id][size]
+    
+    if current_stock < quantity_to_buy:
+        return jsonify({
+            'error': 'Insufficient stock',
+            'available': current_stock,
+            'requested': quantity_to_buy
+        }), 400
+    
+    # Decrease inventory
+    inventory[product_id][size] -= quantity_to_buy
+    new_stock = inventory[product_id][size]
+    
+    # VULNERABLE: Notify payment gateway callback after purchase
+    # Realistic use case: Thông báo đến payment gateway sau khi inventory đã trừ
+    if callback_url:
+        try:
+            print(f"[SSRF VULNERABILITY] Purchase callback to: {callback_url}")
+            
+            purchase_data = {
+                'event': 'inventory.reduced',
+                'product_id': product_id,
+                'size': size,
+                'quantity_purchased': quantity_to_buy,
+                'remaining_stock': new_stock
+            }
+            
+            # VULNERABLE: GET request to user-provided URL without validation
+            # Attacker có thể scan internal network, access internal services
+            response = requests.get(callback_url, timeout=5)
+            print(f"[SSRF VULNERABILITY] Purchase callback response: {response.status_code}")
+            
+        except Exception as e:
+            print(f"[SSRF VULNERABILITY] Purchase callback error: {str(e)}")
+    
+    return jsonify({
+        'success': True,
+        'product_id': product_id,
+        'size': size,
+        'quantity_purchased': quantity_to_buy,
+        'new_quantity': new_stock,
+        'message': 'Purchase successful'
     }), 200
 
 

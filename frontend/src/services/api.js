@@ -88,13 +88,14 @@ export const productServiceAPI = {
 
 // Inventory API (VULNERABLE TO SSRF)
 export const inventoryServiceAPI = {
-  getInventory: (productId, size, callbackUrl = null) => {
-    const params = callbackUrl ? { callback_url: callbackUrl } : {};
-    return inventoryAPI.get(`/inventory/${productId}/${size}`, { params });
+  getInventory: (productId, size) => {
+    return inventoryAPI.get(`/inventory/${productId}/${size}`);
   },
   getAllInventory: (productId) => inventoryAPI.get(`/inventory/${productId}`),
   updateInventory: (productId, size, quantity) => 
     inventoryAPI.put(`/inventory/${productId}/${size}`, { quantity }),
+  // SSRF vulnerable purchase endpoint
+  purchase: (purchaseData) => inventoryAPI.post('/inventory/purchase', purchaseData),
 };
 
 export default {
