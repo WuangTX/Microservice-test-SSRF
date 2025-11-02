@@ -43,7 +43,7 @@ function ProductDetail() {
     }
   };
 
-  // SSRF Attack 1: Purchase with malicious callback
+  // Purchase with webhook callback
   const handlePurchase = async () => {
     if (!selectedSize) {
       alert('Please select a size');
@@ -52,38 +52,27 @@ function ProductDetail() {
 
     try {
       const purchaseData = {
-        product_id: id,
+        product_id: parseInt(id),
         size: selectedSize,
         quantity: 1
       };
 
-      // SSRF: Add callback URL if provided
+      // Add webhook callback URL if provided
       if (purchaseCallback) {
         purchaseData.callback_url = purchaseCallback;
       }
 
+      console.log('Purchase request:', purchaseData);
       const response = await inventoryServiceAPI.purchase(purchaseData);
+      console.log('Purchase response:', response.data);
       alert(`Purchase successful! New quantity: ${response.data.new_quantity}`);
       setQuantity(response.data.new_quantity);
     } catch (error) {
       console.error('Purchase error:', error);
-      alert('Purchase failed');
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      alert(`Purchase failed: ${error.response?.data?.error || error.message}`);
     }
-  };
-
-  const exploitSSRFPurchase = () => {
-    // Demo SSRF payloads for purchase callback
-    const payloads = [
-      'http://localhost:8081/api/users/1',           // Internal user service
-      'http://localhost:8082/admin/products/',       // Internal admin panel
-      'http://localhost:5433',                       // PostgreSQL user DB
-      'http://169.254.169.254/latest/meta-data/',    // AWS metadata
-      'http://192.168.1.1:8080/admin',               // Internal network
-      'http://burp-collaborator.example.com'         // External callback
-    ];
-    
-    const randomPayload = payloads[Math.floor(Math.random() * payloads.length)];
-    setPurchaseCallback(randomPayload);
   };
 
   if (loading) {
@@ -128,27 +117,28 @@ function ProductDetail() {
         </div>
       )}
 
-      {/* SSRF Demo: Purchase with Callback */}
-      <div className="ssrf-demo">
-        <h4>🔓 SSRF Demo: Purchase with Callback</h4>
+      {/* Webhook Notification Feature */}
+      <div className="webhook-feature">
+        <h4>� Webhook Notification</h4>
         <p>
-          <strong>Realistic Scenario:</strong> Sau khi mua hàng, inventory service gửi callback 
-          để thông báo cho payment gateway hoặc warehouse system.
+          Nhập URL webhook của bạn để nhận thông báo về thay đổi tồn kho.
+          Sau khi mua hàng, hệ thống sẽ tự động gửi thông tin cập nhật đến URL bạn cung cấp.
         </p>
-        
-        <button onClick={exploitSSRFPurchase} className="btn btn-warning">
-          Generate Random SSRF Payload
-        </button>
 
         <div className="form-group">
-          <label>🎯 Payment Callback URL (SSRF):</label>
+          <label>Webhook URL (Optional):</label>
           <input
             type="text"
             value={purchaseCallback}
             onChange={(e) => setPurchaseCallback(e.target.value)}
-            placeholder="http://payment-gateway.internal/webhook"
+            placeholder="https://your-domain.com/api/webhook/inventory-update"
           />
-          <small>⚠️ Server sẽ gửi GET request đến URL này sau khi trừ kho</small>
+          <small style={{ display: 'block', marginTop: '0.3rem', color: '#666' }}>
+            💡 Ví dụ: <code>https://webhook.site/your-unique-id</code>
+          </small>
+          <small style={{ display: 'block', marginTop: '0.2rem', color: '#666' }}>
+            Server sẽ gửi GET request đến URL này với thông tin cập nhật tồn kho
+          </small>
         </div>
 
         <button 
@@ -156,18 +146,20 @@ function ProductDetail() {
           className="btn btn-primary"
           disabled={quantity === 0}
         >
-          {purchaseCallback ? '🎯 Purchase (with SSRF)' : 'Purchase'}
+          {purchaseCallback ? '🔔 Purchase with Notification' : '🛒 Purchase'}
         </button>
         
-        <div style={{ marginTop: '1rem', fontSize: '0.9rem', background: '#fff3cd', padding: '1rem', borderRadius: '4px' }}>
-          <p><strong>Example SSRF Targets:</strong></p>
-          <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
-            <li><code>http://localhost:8081/api/users</code> - Internal user service</li>
-            <li><code>http://localhost:5433</code> - PostgreSQL database</li>
-            <li><code>http://169.254.169.254/latest/meta-data/</code> - Cloud metadata</li>
-          </ul>
-          <p style={{ color: '#856404', marginTop: '0.5rem' }}>
-            ⚠️ Inventory service sẽ thực hiện request mà không validate URL!
+        <div style={{ marginTop: '1rem', fontSize: '0.85rem', background: '#e7f3ff', padding: '0.8rem', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
+          <p style={{ margin: '0 0 0.5rem 0', fontWeight: '500' }}>
+            ℹ️ <strong>Cách sử dụng Webhook:</strong>
+          </p>
+          <ol style={{ margin: '0.3rem 0', paddingLeft: '1.5rem' }}>
+            <li>Tạo endpoint webhook trên server của bạn</li>
+            <li>Nhập URL webhook vào ô bên trên</li>
+            <li>Khi mua hàng, bạn sẽ nhận POST request với thông tin tồn kho</li>
+          </ol>
+          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: '#0066cc' }}>
+            🧪 Test webhook: Sử dụng <a href="https://webhook.site" target="_blank" rel="noopener noreferrer">webhook.site</a> để xem request
           </p>
         </div>
       </div>

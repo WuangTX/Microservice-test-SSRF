@@ -69,10 +69,13 @@ function AdminProducts() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await productServiceAPI.deleteProduct(id);
+        const response = await productServiceAPI.deleteProduct(id);
+        console.log('Delete response:', response);
+        alert('Product deleted successfully!');
         loadProducts();
       } catch (error) {
         console.error('Error deleting product:', error);
+        alert('Error deleting product: ' + (error.response?.data || error.message));
       }
     }
   };

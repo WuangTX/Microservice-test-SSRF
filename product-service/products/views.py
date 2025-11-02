@@ -1,12 +1,14 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from .models import Product, ProductSize
 from .serializers import ProductSerializer, ProductCreateSerializer, ProductSizeSerializer
 
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
+    permission_classes = [AllowAny]  # Allow all operations for testing
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:

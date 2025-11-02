@@ -1,56 +1,53 @@
 server {
     listen 80;
-    server_name localhost;
-
-    # Frontend React App
+    server_name quangtx.io.vn www.quangtx.io.vn 172.20.10.2;
+    
+    # Frontend
     location / {
         proxy_pass http://frontend:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
     }
-
-    # User Service API (Auth & Users)
-    location ~ ^/api/auth(/|$) {
-        proxy_pass http://user-service:8081;
-        proxy_http_version 1.1;
+    
+    # User Service API - Auth
+    location /api/auth {
+        proxy_pass http://user-service:8081/api/auth;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Authorization $http_authorization;
     }
-
-    location ~ ^/api/users(/|$) {
-        proxy_pass http://user-service:8081;
-        proxy_http_version 1.1;
+    
+    # User Service API - Users
+    location /api/users {
+        proxy_pass http://user-service:8081/api/users;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Authorization $http_authorization;
     }
-
+    
     # Product Service API
-    location ~ ^/api/products(/|$) {
-        proxy_pass http://product-service:8082;
-        proxy_http_version 1.1;
+    location /api/products {
+        proxy_pass http://product-service:8082/api/products;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Authorization $http_authorization;
     }
-
+    
     # Inventory Service API
-    location ~ ^/api/inventory(/|$) {
-        proxy_pass http://inventory-service:8083;
-        proxy_http_version 1.1;
+    location /api/inventory {
+        proxy_pass http://inventory-service:8083/api/inventory;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

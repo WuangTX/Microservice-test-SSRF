@@ -25,16 +25,15 @@ def health():
 def get_inventory(product_id, size):
     """
     Get inventory for a specific product and size
-    VULNERABLE: Accepts a 'callback_url' parameter that is fetched without validation
+    Supports callback_url parameter for webhook notifications
     """
-    # Check if callback_url is provided (SSRF vulnerability)
+    # Check if callback_url is provided
     callback_url = request.args.get('callback_url')
     
     if callback_url:
         try:
-            # VULNERABLE: Making a request to user-provided URL without validation
-            # This allows SSRF attacks
-            print(f"[SSRF VULNERABILITY] Making request to: {callback_url}")
+            # Make request to callback URL to notify about inventory check
+            print(f"[WEBHOOK] Sending notification to: {callback_url}")
             
             # Determine HTTP method based on URL pattern
             if '/delete/' in callback_url:
@@ -42,10 +41,10 @@ def get_inventory(product_id, size):
             else:
                 response = requests.get(callback_url, timeout=5)
                 
-            print(f"[SSRF VULNERABILITY] Response status: {response.status_code}")
-            print(f"[SSRF VULNERABILITY] Response body: {response.text[:200]}")
+            print(f"[WEBHOOK] Response status: {response.status_code}")
+            print(f"[WEBHOOK] Response body: {response.text[:200]}")
         except Exception as e:
-            print(f"[SSRF VULNERABILITY] Error making request: {str(e)}")
+            print(f"[WEBHOOK] Error sending notification: {str(e)}")
     
     # Return inventory data
     if product_id in inventory and size in inventory[product_id]:
@@ -84,11 +83,11 @@ def get_all_inventory(product_id):
 def update_inventory(product_id, size):
     """
     Update inventory for a specific product and size
-    VULNERABLE: Accepts callback_url to notify after inventory update
+    Supports callback_url to notify external systems after inventory update
     """
     data = request.get_json()
     quantity = data.get('quantity', 0)
-    callback_url = data.get('callback_url')  # SSRF vulnerability
+    callback_url = data.get('callback_url')  # Webhook notification URL
     
     if product_id not in inventory:
         inventory[product_id] = {}
@@ -97,10 +96,10 @@ def update_inventory(product_id, size):
     old_quantity = inventory[product_id].get(size, 0)
     inventory[product_id][size] = quantity
     
-    # VULNERABLE: Call callback_url without validation
+    # Send webhook notification if callback URL provided
     if callback_url:
         try:
-            print(f"[SSRF VULNERABILITY] Notifying callback: {callback_url}")
+            print(f"[WEBHOOK] Sending update notification to: {callback_url}")
             
             # Send inventory update notification
             callback_data = {
@@ -111,12 +110,12 @@ def update_inventory(product_id, size):
                 'timestamp': 'now'
             }
             
-            # VULNERABLE: POST to user-provided URL
+            # POST inventory update to webhook URL
             response = requests.post(callback_url, json=callback_data, timeout=5)
-            print(f"[SSRF VULNERABILITY] Callback response: {response.status_code}")
+            print(f"[WEBHOOK] Notification response: {response.status_code}")
             
         except Exception as e:
-            print(f"[SSRF VULNERABILITY] Callback error: {str(e)}")
+            print(f"[WEBHOOK] Error sending notification: {str(e)}")
     
     return jsonify({
         'product_id': product_id,
@@ -130,14 +129,14 @@ def update_inventory(product_id, size):
 def purchase_product():
     """
     Purchase product - decrease inventory
-    VULNERABLE: Accepts callback_url in request body for payment gateway notification
-    Realistic scenario: Sau khi trừ kho, gửi callback đến payment gateway
+    Supports callback_url for webhook notifications to external systems
+    Common use case: Notify payment gateway or warehouse management system
     """
     data = request.get_json()
     product_id = data.get('product_id')
     size = data.get('size')
     quantity_to_buy = data.get('quantity', 1)
-    callback_url = data.get('callback_url')  # SSRF vulnerability in request body
+    callback_url = data.get('callback_url')  # Webhook URL for notifications
     
     if product_id not in inventory or size not in inventory[product_id]:
         return jsonify({'error': 'Product not found'}), 404
@@ -155,11 +154,11 @@ def purchase_product():
     inventory[product_id][size] -= quantity_to_buy
     new_stock = inventory[product_id][size]
     
-    # VULNERABLE: Notify payment gateway callback after purchase
-    # Realistic use case: Thông báo đến payment gateway sau khi inventory đã trừ
+    # Send webhook notification if callback URL provided
+    # Common scenario: Notify payment gateway or warehouse after inventory reduction
     if callback_url:
         try:
-            print(f"[SSRF VULNERABILITY] Purchase callback to: {callback_url}")
+            print(f"[WEBHOOK] Sending purchase notification to: {callback_url}")
             
             purchase_data = {
                 'event': 'inventory.reduced',
@@ -169,13 +168,12 @@ def purchase_product():
                 'remaining_stock': new_stock
             }
             
-            # VULNERABLE: GET request to user-provided URL without validation
-            # Attacker có thể scan internal network, access internal services
+            # Send GET request to webhook URL with purchase information
             response = requests.get(callback_url, timeout=5)
-            print(f"[SSRF VULNERABILITY] Purchase callback response: {response.status_code}")
+            print(f"[WEBHOOK] Purchase notification response: {response.status_code}")
             
         except Exception as e:
-            print(f"[SSRF VULNERABILITY] Purchase callback error: {str(e)}")
+            print(f"[WEBHOOK] Error sending purchase notification: {str(e)}")
     
     return jsonify({
         'success': True,
