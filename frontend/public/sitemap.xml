@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main Pages -->
+  <url>
+    <loc>https://quangtx.io.vn/</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <url>
+    <loc>https://quangtx.io.vn/login</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://quangtx.io.vn/register</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Admin Pages -->
+  <url>
+    <loc>https://quangtx.io.vn/admin/products</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://quangtx.io.vn/admin/users</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Product Pages -->
+  <url>
+    <loc>https://quangtx.io.vn/product/1</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://quangtx.io.vn/product/2</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://quangtx.io.vn/product/3</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://quangtx.io.vn/product/4</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://quangtx.io.vn/product/5</loc>
+    <lastmod>2025-11-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- API Endpoints for pentesting -->
+  <!-- These are not typical in real sitemaps but useful for penetration testing -->
+  <!--
+  API Endpoints:
+  GET  /api/products/ - Get all products
+  GET  /api/products/{id}/ - Get product by ID
+  POST /api/products/ - Create product (ADMIN)
+  PUT  /api/products/{id}/ - Update product (ADMIN)
+  DELETE /api/products/{id}/ - Delete product (ADMIN)
+  
+  GET  /api/users - Get all users (ADMIN)
+  GET  /api/users/{id} - Get user by ID (ADMIN)
+  PUT  /api/users/{id} - Update user (ADMIN)
+  DELETE /api/users/delete/{id} - Delete user (ADMIN)
+  POST /api/users/{id}/avatar - Upload avatar from URL (SSRF VULNERABLE!)
+  
+  POST /api/auth/login - User login
+  POST /api/auth/register - User registration (BLIND SSRF: email domain validation)
+  
+  SSRF Vulnerable Endpoints:
+  GET  /api/inventory/{product_id}/{size}?callback_url=http://evil.com
+  PUT  /api/inventory/{product_id}/{size} - Update inventory
+  POST /api/inventory/purchase - Purchase with webhook callback (VULNERABLE TO SSRF)
+  POST /api/users/{id}/avatar - Avatar upload (EASY TO DETECT SSRF)
+  -->
+</urlset>

@@ -8,7 +8,8 @@ function ProductDetail() {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [ssrfUrl, setSsrfUrl] = useState('');
+  const [checkPriceUrl, setCheckPriceUrl] = useState('');
+  const [reviewUrl, setReviewUrl] = useState('');
   const [purchaseCallback, setPurchaseCallback] = useState('');
 
   useEffect(() => {
@@ -20,7 +21,22 @@ function ProductDetail() {
       const response = await productServiceAPI.getProductById(id);
       setProduct(response.data);
       if (response.data.sizes && response.data.sizes.length > 0) {
-        setSelectedSize(response.data.sizes[0].size);
+        const firstSize = response.data.sizes[0];
+        setSelectedSize(firstSize.size);
+        setQuantity(firstSize.quantity);
+        console.log('Initial size and quantity:', firstSize);
+      }
+
+      // TỰ ĐỘNG gọi check_price và fetch_review khi load product
+      // Để security scanner có thể thấy SSRF parameters trong network traffic
+      if (response.data.price_comparison_url) {
+        console.log('Auto-checking price from:', response.data.price_comparison_url);
+        autoCheckPrice(response.data.price_comparison_url);
+      }
+      
+      if (response.data.external_review_url) {
+        console.log('Auto-fetching review from:', response.data.external_review_url);
+        autoFetchReview(response.data.external_review_url);
       }
     } catch (error) {
       console.error('Error loading product:', error);
@@ -29,16 +45,35 @@ function ProductDetail() {
     }
   };
 
+  // TỰ ĐỘNG check price khi load product (không cần user click)
+  const autoCheckPrice = async (url) => {
+    try {
+      await productServiceAPI.checkPrice(id, url);
+      console.log('Auto price check completed');
+    } catch (error) {
+      console.error('Auto price check failed:', error);
+    }
+  };
+
+  // TỰ ĐỘNG fetch review khi load product (không cần user click)
+  const autoFetchReview = async (url) => {
+    try {
+      await productServiceAPI.fetchReview(id, url);
+      console.log('Auto review fetch completed');
+    } catch (error) {
+      console.error('Auto review fetch failed:', error);
+    }
+  };
+
   const handleSizeChange = async (size) => {
     setSelectedSize(size);
-    setQuantity(null);
     
-    // Call inventory service to get quantity
-    try {
-      const response = await inventoryServiceAPI.getInventory(id, size);
-      setQuantity(response.data.quantity);
-    } catch (error) {
-      console.error('Error getting inventory:', error);
+    // Get quantity from product sizes (from Product Service database)
+    const sizeObj = product.sizes.find(s => s.size === size);
+    if (sizeObj) {
+      setQuantity(sizeObj.quantity);
+      console.log(`Size ${size} quantity from product:`, sizeObj.quantity);
+    } else {
       setQuantity(0);
     }
   };
@@ -72,6 +107,38 @@ function ProductDetail() {
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
       alert(`Purchase failed: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  // REALISTIC SSRF: So sánh giá từ website khác
+  const checkPrice = async () => {
+    if (!checkPriceUrl) {
+      alert('Vui lòng nhập URL website để so sánh giá');
+      return;
+    }
+
+    try {
+      const response = await productServiceAPI.checkPrice(id, checkPriceUrl);
+      alert(`Giá từ website khác: ${response.data.message}`);
+    } catch (error) {
+      console.error('Error checking price:', error);
+      alert('Không thể kiểm tra giá từ website này');
+    }
+  };
+
+  // REALISTIC SSRF: Tự động lấy review từ URL
+  const fetchReview = async () => {
+    if (!reviewUrl) {
+      alert('Vui lòng nhập URL review sản phẩm');
+      return;
+    }
+
+    try {
+      const response = await productServiceAPI.fetchReview(id, reviewUrl);
+      alert(`Review đã được lấy thành công: ${response.data.summary}`);
+    } catch (error) {
+      console.error('Error fetching review:', error);
+      alert('Không thể lấy review từ URL này');
     }
   };
 
@@ -124,6 +191,47 @@ function ProductDetail() {
           Nhập URL webhook của bạn để nhận thông báo về thay đổi tồn kho.
           Sau khi mua hàng, hệ thống sẽ tự động gửi thông tin cập nhật đến URL bạn cung cấp.
         </p>
+
+        {/* REALISTIC SSRF FEATURES */}
+        <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+          <h4>🛍️ Tính năng mua sắm thông minh</h4>
+          
+          {/* So sánh giá */}
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label>🔍 So sánh giá từ website khác:</label>
+            <input
+              type="text"
+              value={checkPriceUrl}
+              onChange={(e) => setCheckPriceUrl(e.target.value)}
+              placeholder="https://shopee.vn/product/123 hoặc https://tiki.vn/product/456"
+              style={{ width: '100%', marginRight: '10px', marginBottom: '5px' }}
+            />
+            <button onClick={checkPrice} className="btn btn-secondary" style={{ fontSize: '0.9rem' }}>
+              So sánh giá
+            </button>
+            <small style={{ display: 'block', color: '#666' }}>
+              Nhập URL sản phẩm tương tự từ các website khác để so sánh giá
+            </small>
+          </div>
+
+          {/* Lấy review */}
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label>⭐ Lấy review từ blog/website:</label>
+            <input
+              type="text"
+              value={reviewUrl}
+              onChange={(e) => setReviewUrl(e.target.value)}
+              placeholder="https://reviewsachhay.com/product-review hoặc https://blog.com/review"
+              style={{ width: '100%', marginRight: '10px', marginBottom: '5px' }}
+            />
+            <button onClick={fetchReview} className="btn btn-secondary" style={{ fontSize: '0.9rem' }}>
+              Lấy Review
+            </button>
+            <small style={{ display: 'block', color: '#666' }}>
+              Tự động tóm tắt review từ blog/website về sản phẩm này
+            </small>
+          </div>
+        </div>
 
         <div className="form-group">
           <label>Webhook URL (Optional):</label>

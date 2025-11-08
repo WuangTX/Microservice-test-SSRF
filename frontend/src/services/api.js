@@ -72,9 +72,15 @@ export const authAPI = {
 // User API
 export const userServiceAPI = {
   getAllUsers: () => userAPI.get('/users'),
+  getCurrentUser: () => userAPI.get('/users/me'),
   getUserById: (id) => userAPI.get(`/users/${id}`),
   updateUser: (id, userData) => userAPI.put(`/users/${id}`, userData),
+  updateProfile: (userData) => userAPI.put('/users/me', userData),
   deleteUser: (id) => userAPI.delete(`/users/delete/${id}`),
+  uploadAvatar: (id, data) => userAPI.post(`/users/${id}/avatar`, data),
+  uploadAvatarFile: (formData) => userAPI.post(`/users/me/avatar/upload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 // Product API
@@ -84,6 +90,14 @@ export const productServiceAPI = {
   createProduct: (productData) => productAPI.post('/products/', productData),
   updateProduct: (id, productData) => productAPI.put(`/products/${id}/`, productData),
   deleteProduct: (id) => productAPI.delete(`/products/${id}/`),
+  
+  // REALISTIC SSRF ENDPOINTS
+  checkPrice: (productId, compareUrl) => 
+    productAPI.post(`/products/${productId}/check_price/`, { compare_url: compareUrl }),
+  fetchReview: (productId, reviewUrl) => 
+    productAPI.post(`/products/${productId}/fetch_review/`, { review_url: reviewUrl }),
+  shareProduct: (productId, shareUrl) => 
+    productAPI.post(`/products/${productId}/share/`, { share_api_url: shareUrl }),
 };
 
 // Inventory API (VULNERABLE TO SSRF)

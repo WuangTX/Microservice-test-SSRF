@@ -5,7 +5,6 @@ public class RegisterRequest {
     private String password;
     private String email;
     private String role = "USER";
-    private String webhookUrl;  // SSRF: Webhook callback URL for registration notification
 
     public RegisterRequest() {
     }
@@ -47,13 +46,5 @@ public class RegisterRequest {
 
     public void setRole(String role) {
         this.role = role;
-    }
-
-    public String getWebhookUrl() {
-        return webhookUrl;
-    }
-
-    public void setWebhookUrl(String webhookUrl) {
-        this.webhookUrl = webhookUrl;
     }
 }

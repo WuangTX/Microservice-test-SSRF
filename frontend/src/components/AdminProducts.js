@@ -34,34 +34,57 @@ function AdminProducts() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Debug: Log form data before sending
+      console.log('Form data before submit:', JSON.stringify(formData, null, 2));
+      
       if (editingProduct) {
-        await productServiceAPI.updateProduct(editingProduct.id, formData);
+        console.log('Updating product:', editingProduct.id);
+        const response = await productServiceAPI.updateProduct(editingProduct.id, formData);
+        console.log('Update response:', response.data);
       } else {
-        await productServiceAPI.createProduct(formData);
+        console.log('Creating new product');
+        const response = await productServiceAPI.createProduct(formData);
+        console.log('Create response:', response.data);
       }
       setShowForm(false);
       setEditingProduct(null);
       resetForm();
       loadProducts();
+      alert('Product saved successfully!');
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error saving product');
+      console.error('Error response:', error.response?.data);
+      alert('Error saving product: ' + (error.response?.data?.detail || error.message));
     }
   };
 
   const handleEdit = (product) => {
+    console.log('Editing product:', product);
+    console.log('Product sizes:', product.sizes);
+    
     setEditingProduct(product);
+    
+    // Ensure sizes data is properly formatted
+    const sizes = product.sizes && product.sizes.length > 0 
+      ? product.sizes.map(s => ({
+          size: s.size,
+          quantity: parseInt(s.quantity) || 0  // Ensure quantity is a number
+        }))
+      : [
+          { size: 'S', quantity: 0 },
+          { size: 'M', quantity: 0 },
+          { size: 'L', quantity: 0 },
+          { size: 'XL', quantity: 0 }
+        ];
+    
+    console.log('Formatted sizes for editing:', sizes);
+    
     setFormData({
       name: product.name,
       description: product.description,
       price: product.price,
       image_url: product.image_url || '',
-      sizes: product.sizes || [
-        { size: 'S', quantity: 0 },
-        { size: 'M', quantity: 0 },
-        { size: 'L', quantity: 0 },
-        { size: 'XL', quantity: 0 }
-      ]
+      sizes: sizes
     });
     setShowForm(true);
   };
@@ -97,7 +120,10 @@ function AdminProducts() {
 
   const handleSizeQuantityChange = (index, value) => {
     const newSizes = [...formData.sizes];
-    newSizes[index].quantity = parseInt(value) || 0;
+    // Ensure quantity is always a number, not string
+    const quantity = value === '' ? 0 : parseInt(value, 10);
+    newSizes[index].quantity = isNaN(quantity) ? 0 : quantity;
+    console.log(`Size ${newSizes[index].size} quantity changed to:`, newSizes[index].quantity);
     setFormData({ ...formData, sizes: newSizes });
   };
 

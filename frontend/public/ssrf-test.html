@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSRF Test Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        input { width: 400px; padding: 5px; margin: 5px; }
+        button { padding: 8px 15px; margin: 5px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .error { background: #ffe6e6; }
+        .success { background: #e6ffe6; }
+    </style>
+</head>
+<body>
+    <h1>🔍 SSRF Vulnerability Test Page</h1>
+    
+    <div class="test-section">
+        <h3>1. Basic API Test</h3>
+        <button onclick="testBasicAPI()">Test Product API</button>
+        <div id="basicResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. SSRF - So sánh giá</h3>
+        <input type="text" id="priceUrl" placeholder="Nhập URL (vd: https://httpbin.org/get)" value="https://httpbin.org/get">
+        <button onclick="testCheckPrice()">Kiểm tra giá</button>
+        <div id="priceResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. SSRF - Lấy review</h3>
+        <input type="text" id="reviewUrl" placeholder="Nhập URL review" value="https://jsonplaceholder.typicode.com/posts/1">
+        <button onclick="testFetchReview()">Lấy review</button>
+        <div id="reviewResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4. SSRF - Chia sẻ</h3>
+        <input type="text" id="shareUrl" placeholder="Nhập social API URL" value="https://httpbin.org/post">
+        <button onclick="testShare()">Chia sẻ</button>
+        <div id="shareResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🚨 Dangerous SSRF Tests</h3>
+        <button onclick="testInternal()">Test Internal Services</button>
+        <button onclick="testMetadata()">Test Cloud Metadata</button>
+        <div id="dangerResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = '/api'; // Adjust if needed
+        
+        async function apiCall(url, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (data) options.body = JSON.stringify(data);
+                
+                const response = await fetch(url, options);
+                const result = await response.json();
+                return { success: response.ok, data: result, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testBasicAPI() {
+            const result = await apiCall(`${API_BASE}/products/`);
+            const div = document.getElementById('basicResult');
+            
+            if (result.success) {
+                div.className = 'result success';
+                div.innerHTML = `✅ API hoạt động! Tìm thấy ${result.data.length} sản phẩm`;
+            } else {
+                div.className = 'result error';
+                div.innerHTML = `❌ API lỗi: ${result.error || result.data}`;
+            }
+        }
+
+        async function testCheckPrice() {
+            const url = document.getElementById('priceUrl').value;
+            const result = await apiCall(`${API_BASE}/products/1/check_price/`, 'POST', { compare_url: url });
+            const div = document.getElementById('priceResult');
+            
+            if (result.success) {
+                div.className = 'result success';
+                div.innerHTML = `✅ SSRF thành công!<br><pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+            } else {
+                div.className = 'result error';
+                div.innerHTML = `❌ SSRF thất bại: ${result.error || JSON.stringify(result.data)}`;
+            }
+        }
+
+        async function testFetchReview() {
+            const url = document.getElementById('reviewUrl').value;
+            const result = await apiCall(`${API_BASE}/products/1/fetch_review/`, 'POST', { review_url: url });
+            const div = document.getElementById('reviewResult');
+            
+            if (result.success) {
+                div.className = 'result success';
+                div.innerHTML = `✅ SSRF thành công!<br><pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+            } else {
+                div.className = 'result error';
+                div.innerHTML = `❌ SSRF thất bại: ${result.error || JSON.stringify(result.data)}`;
+            }
+        }
+
+        async function testShare() {
+            const url = document.getElementById('shareUrl').value;
+            const result = await apiCall(`${API_BASE}/products/1/share/`, 'POST', { share_api_url: url });
+            const div = document.getElementById('shareResult');
+            
+            if (result.success) {
+                div.className = 'result success';
+                div.innerHTML = `✅ SSRF thành công!<br><pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+            } else {
+                div.className = 'result error';
+                div.innerHTML = `❌ SSRF thất bại: ${result.error || JSON.stringify(result.data)}`;
+            }
+        }
+
+        async function testInternal() {
+            const tests = [
+                'http://localhost:8081/health',
+                'http://localhost:8083/health', 
+                'http://user-service:8081/users/me',
+                'http://inventory-service:8083/health'
+            ];
+            
+            const div = document.getElementById('dangerResult');
+            div.innerHTML = '🔄 Testing internal services...';
+            
+            for (const url of tests) {
+                const result = await apiCall(`${API_BASE}/products/1/check_price/`, 'POST', { compare_url: url });
+                div.innerHTML += `<br>🎯 ${url}: ${result.success ? '✅ ACCESSIBLE' : '❌ BLOCKED'}`;
+            }
+        }
+
+        async function testMetadata() {
+            const metadataUrls = [
+                'http://169.254.169.254/latest/meta-data/',
+                'http://metadata.google.internal/computeMetadata/v1/',
+                'http://100.100.100.200/latest/meta-data/'
+            ];
+            
+            const div = document.getElementById('dangerResult');
+            div.innerHTML = '🔄 Testing cloud metadata...';
+            
+            for (const url of metadataUrls) {
+                const result = await apiCall(`${API_BASE}/products/1/check_price/`, 'POST', { compare_url: url });
+                div.innerHTML += `<br>☁️ ${url}: ${result.success ? '🚨 METADATA EXPOSED!' : '✅ BLOCKED'}`;
+            }
+        }
+    </script>
+</body>
+</html>

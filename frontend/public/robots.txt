@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://quangtx.io.vn/sitemap.xml
+
+# Admin pages (typically disallowed but useful for pentest discovery)
+Allow: /admin/
+
+# API endpoints (not typical but helpful for security testing)
+# Allow crawling of API documentation
+Allow: /api/
+
+# Common crawl targets for security testing
+Allow: /login
+Allow: /register
+Allow: /product/
+Allow: /.well-known/
+
+# Security testing hints in comments:
+# SSRF vulnerable endpoint: /api/inventory/purchase
+# Admin panel: /admin/products, /admin/users
+# Authentication: /api/auth/login, /api/auth/register

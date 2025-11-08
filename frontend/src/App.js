@@ -6,6 +6,8 @@ import ProductList from './components/ProductList';
 import ProductDetail from './components/ProductDetail';
 import AdminProducts from './components/AdminProducts';
 import AdminUsers from './components/AdminUsers';
+import UserProfile from './components/UserProfile';
+import NotFound from './components/NotFound';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -34,6 +36,9 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {user && <span>Welcome, {user.username}!</span>}
             <Link to="/">Products</Link>
+            {user && (
+              <Link to="/profile">My Profile</Link>
+            )}
             {user && user.role === 'ADMIN' && (
               <>
                 <Link to="/admin/products">Manage Products</Link>
@@ -58,6 +63,10 @@ function App() {
             <Route path="/login" element={<Login setUser={setUser} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
             <Route 
+              path="/profile" 
+              element={user ? <UserProfile /> : <Navigate to="/login" />} 
+            />
+            <Route 
               path="/admin/products" 
               element={user && user.role === 'ADMIN' ? <AdminProducts /> : <Navigate to="/login" />} 
             />
@@ -65,6 +74,8 @@ function App() {
               path="/admin/users" 
               element={user && user.role === 'ADMIN' ? <AdminUsers /> : <Navigate to="/login" />} 
             />
+            {/* Catch-all route for 404 pages */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
       </div>

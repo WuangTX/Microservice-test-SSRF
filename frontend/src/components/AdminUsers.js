@@ -5,6 +5,9 @@ function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [showAvatarForm, setShowAvatarForm] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -50,6 +53,27 @@ function AdminUsers() {
       console.error('Error saving user:', error);
       alert('Error saving user');
     }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await userServiceAPI.uploadAvatar(selectedUser.id, { image_url: avatarUrl });
+      console.log('Avatar upload response:', response.data);
+      alert('Avatar uploaded successfully!');
+      setShowAvatarForm(false);
+      setAvatarUrl('');
+      loadUsers();
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      alert('Error uploading avatar: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const showAvatarUpload = (user) => {
+    setSelectedUser(user);
+    setAvatarUrl('');
+    setShowAvatarForm(true);
   };
 
   const handleDelete = async (id) => {
@@ -133,6 +157,43 @@ function AdminUsers() {
         </div>
       )}
 
+      {/* Avatar Upload Form */}
+      {showAvatarForm && (
+        <div className="form-container">
+          <h3>Upload Avatar for {selectedUser?.username}</h3>
+          
+          <form onSubmit={handleAvatarUpload}>
+            <div className="form-group">
+              <label>Image URL:</label>
+              <input
+                type="url"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+                required
+              />
+              <small style={{ display: 'block', marginTop: '0.5rem', color: '#666' }}>
+                💀 Try: http://localhost:8080/admin, http://192.168.1.1:8080, http://169.254.169.254/latest/meta-data/
+              </small>
+            </div>
+
+            <button type="submit" className="btn btn-primary">Upload Avatar</button>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => {
+                setShowAvatarForm(false);
+                setAvatarUrl('');
+                setSelectedUser(null);
+              }}
+              style={{ marginLeft: '0.5rem' }}
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+
       <div className="admin-table">
         <table>
           <thead>
@@ -158,6 +219,13 @@ function AdminUsers() {
                     style={{ marginRight: '0.5rem' }}
                   >
                     Edit
+                  </button>
+                  <button 
+                    className="btn btn-warning" 
+                    onClick={() => showAvatarUpload(user)}
+                    style={{ marginRight: '0.5rem' }}
+                  >
+                    📷 Avatar
                   </button>
                   <button 
                     className="btn btn-danger" 

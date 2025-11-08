@@ -17,6 +17,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    restart: unless-stopped
 
   postgres-product:
     image: postgres:15-alpine
@@ -36,9 +37,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    restart: unless-stopped
 
   user-service:
-    build: ./user-service
+    image: tranquang04/user-service:latest
     container_name: user-service
     ports:
       - "8081:8081"
@@ -53,49 +55,55 @@ services:
         condition: service_healthy
     networks:
       - microservice-network
+    restart: unless-stopped
 
   product-service:
-    build: ./product-service
+    image: tranquang04/product-service:latest
     container_name: product-service
     ports:
       - "8082:8082"
     environment:
       DATABASE_URL: postgresql://productservice:password123@postgres-product:5432/productservice_db
-      DEBUG: "True"
+      DEBUG: "False"
     depends_on:
       postgres-product:
         condition: service_healthy
     networks:
       - microservice-network
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8082"
+    restart: unless-stopped
 
   inventory-service:
-    build: ./inventory-service
+    image: tranquang04/inventory-service:latest
     container_name: inventory-service
     ports:
       - "8083:8083"
     environment:
-      FLASK_ENV: development
-      FLASK_DEBUG: 1
+      FLASK_ENV: production
+      FLASK_DEBUG: 0
     networks:
       - microservice-network
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    image: tranquang04/frontend:latest
     container_name: frontend
     environment:
       REACT_APP_API_URL: ""
-      CHOKIDAR_USEPOLLING: "true"
     networks:
       - microservice-network
+    restart: unless-stopped
 
   nginx-proxy:
     image: nginx:alpine
     container_name: nginx-proxy
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - frontend
       - user-service
@@ -103,6 +111,16 @@ services:
       - inventory-service
     networks:
       - microservice-network
+    restart: unless-stopped
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   postgres_user_data:

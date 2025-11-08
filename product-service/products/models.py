@@ -5,6 +5,13 @@ class Product(models.Model):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image_url = models.URLField(max_length=500, blank=True)
+    
+    # SSRF Vulnerable Fields - URLs stored in database
+    price_comparison_url = models.URLField(max_length=500, blank=True, null=True, 
+                                          help_text="URL to compare prices from competitor website")
+    external_review_url = models.URLField(max_length=500, blank=True, null=True,
+                                         help_text="URL to fetch external product reviews")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

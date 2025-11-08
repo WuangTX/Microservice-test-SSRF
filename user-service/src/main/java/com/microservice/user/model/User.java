@@ -26,6 +26,9 @@ public class User {
     @Column(nullable = false)
     private String role = "USER"; // USER or ADMIN
 
+    @Column
+    private String avatarUrl; // Profile picture URL - SSRF vulnerable endpoint
+
     public User() {
     }
 
@@ -75,5 +78,13 @@ public class User {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 }

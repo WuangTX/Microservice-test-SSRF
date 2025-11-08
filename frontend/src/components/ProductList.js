@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { productServiceAPI } from '../services/api';
 
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     loadProducts();
@@ -31,19 +30,23 @@ function ProductList() {
       <h2>Products</h2>
       <div className="product-grid">
         {products.map((product) => (
-          <div 
+          <Link 
             key={product.id} 
-            className="product-card"
-            onClick={() => navigate(`/product/${product.id}`)}
+            to={`/product/${product.id}`}
+            className="product-card-link"
+            style={{ textDecoration: 'none', color: 'inherit' }}
           >
-            <img 
-              src={product.image_url || 'https://via.placeholder.com/300x200?text=No+Image'} 
-              alt={product.name} 
-            />
-            <h3>{product.name}</h3>
-            <p>{product.description.substring(0, 100)}...</p>
-            <p className="price">${product.price}</p>
-          </div>
+            <div className="product-card">
+              <img 
+                src={product.image_url || 'https://via.placeholder.com/300x200?text=No+Image'} 
+                alt={product.name} 
+              />
+              <h3>{product.name}</h3>
+              <p>{product.description.substring(0, 100)}...</p>
+              <p className="price">${product.price}</p>
+              {/* Hidden comment for pentesters: API endpoint /api/products/{id}/ */}
+            </div>
+          </Link>
         ))}
       </div>
     </div>
