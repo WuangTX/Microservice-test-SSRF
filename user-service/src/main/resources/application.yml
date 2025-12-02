@@ -5,18 +5,18 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://postgres-user:5432/userdb
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres-user:5432/userservice_db}
+    username: ${SPRING_DATASOURCE_USERNAME:userservice}
+    password: ${SPRING_DATASOURCE_PASSWORD:password123}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 jwt:
-  secret: mySecretKeyForJWTTokenGenerationAndValidation123456789
-  expiration: 86400000
+  secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationAndValidation123456789}
+  expiration: ${JWT_EXPIRATION:86400000}

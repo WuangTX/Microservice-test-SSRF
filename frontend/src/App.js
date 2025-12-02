@@ -8,9 +8,18 @@ import AdminProducts from './components/AdminProducts';
 import AdminUsers from './components/AdminUsers';
 import UserProfile from './components/UserProfile';
 import NotFound from './components/NotFound';
+import ShippingTracking from './components/ShippingTracking';
+import SupplierVerification from './components/SupplierVerification';
+import WarrantyCheck from './components/WarrantyCheck';
+import ProductImageLoader from './components/ProductImageLoader';
+import RestockNotification from './components/RestockNotification';
+import Checkout from './components/Checkout';
+import OrderHistory from './components/OrderHistory';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -19,39 +28,79 @@ function App() {
     if (token && username && role) {
       setUser({ token, username, role });
     }
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showUserMenu && !event.target.closest('.user-menu')) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     localStorage.removeItem('role');
+    localStorage.removeItem('userId');
     setUser(null);
+    setShowUserMenu(false);
   };
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <h2>Loading...</h2>
+      </div>
+    );
+  }
 
   return (
     <Router>
       <div className="App">
         <nav className="navbar">
           <h1>🛍️ Microservice Shop</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {user && <span>Welcome, {user.username}!</span>}
-            <Link to="/">Products</Link>
-            {user && (
-              <Link to="/profile">My Profile</Link>
-            )}
+          <div>
+            <Link to="/">Sản phẩm</Link>
+            <Link to="/checkout">Đặt hàng</Link>
+            <Link to="/orders">Đơn hàng của tôi</Link>
+            <Link to="/shipping">Tra cứu vận chuyển</Link>
+            <Link to="/supplier">Xác thực</Link>
+            <Link to="/warranty">Bảo hành</Link>
+            <Link to="/images">Thư viện ảnh</Link>
+            <Link to="/notifications">Thông báo</Link>
             {user && user.role === 'ADMIN' && (
               <>
-                <Link to="/admin/products">Manage Products</Link>
-                <Link to="/admin/users">Manage Users</Link>
+                <Link to="/admin/products">Quản lý sản phẩm</Link>
+                <Link to="/admin/users">Quản lý người dùng</Link>
               </>
             )}
             {!user ? (
               <>
-                <Link to="/login">Login</Link>
-                <Link to="/register">Register</Link>
+                <Link to="/login">Đăng nhập</Link>
+                <Link to="/register">Đăng ký</Link>
               </>
             ) : (
-              <button onClick={handleLogout}>Logout</button>
+              <div className="user-menu">
+                <button 
+                  className="user-menu-trigger"
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                >
+                  👤 {user.username} ▼
+                </button>
+                <div className={`user-menu-dropdown ${showUserMenu ? 'show' : ''}`}>
+                  <Link to="/profile" onClick={() => setShowUserMenu(false)}>
+                    👤 Thông tin cá nhân
+                  </Link>
+                  <button onClick={handleLogout}>
+                    🚪 Đăng xuất
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </nav>
@@ -60,6 +109,13 @@ function App() {
           <Routes>
             <Route path="/" element={<ProductList />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/checkout" element={user ? <Checkout /> : <Navigate to="/login" />} />
+            <Route path="/orders" element={user ? <OrderHistory /> : <Navigate to="/login" />} />
+            <Route path="/shipping" element={<ShippingTracking />} />
+            <Route path="/supplier" element={<SupplierVerification />} />
+            <Route path="/warranty" element={<WarrantyCheck />} />
+            <Route path="/images" element={<ProductImageLoader />} />
+            <Route path="/notifications" element={<RestockNotification />} />
             <Route path="/login" element={<Login setUser={setUser} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
             <Route 

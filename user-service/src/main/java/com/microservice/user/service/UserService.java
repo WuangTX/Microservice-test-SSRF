@@ -54,14 +54,14 @@ public class UserService {
         user.setEmail(request.getEmail());
         user.setRole(request.getRole());
 
-        userRepository.save(user);
+        user = userRepository.save(user);
 
         // BLIND SSRF VULNERABILITY: Tự động validate email domain
         // Tạo URL từ email domain của user để "kiểm tra tính hợp lệ"
         validateEmailDomain(user.getEmail(), user);
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        return new AuthResponse(token, user.getUsername(), user.getRole(), user.getId());
     }
 
     /**
@@ -142,7 +142,7 @@ public class UserService {
         }
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        return new AuthResponse(token, user.getUsername(), user.getRole(), user.getId());
     }
 
     public List<User> getAllUsers() {

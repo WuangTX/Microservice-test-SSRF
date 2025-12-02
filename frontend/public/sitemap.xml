@@ -93,9 +93,6 @@
   POST /api/auth/register - User registration (BLIND SSRF: email domain validation)
   
   SSRF Vulnerable Endpoints:
-  GET  /api/inventory/{product_id}/{size}?callback_url=http://evil.com
-  PUT  /api/inventory/{product_id}/{size} - Update inventory
-  POST /api/inventory/purchase - Purchase with webhook callback (VULNERABLE TO SSRF)
   POST /api/users/{id}/avatar - Avatar upload (EASY TO DETECT SSRF)
   -->
 </urlset>

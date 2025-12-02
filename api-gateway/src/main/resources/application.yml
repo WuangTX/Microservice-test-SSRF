@@ -1,0 +1,143 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      # Global CORS Configuration
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            exposedHeaders:
+              - Authorization
+      
+      # Route Configurations
+      routes:
+        # User Service Routes
+        - id: user-service-auth
+          uri: http://user-service:8081
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+            - name: LoggingFilter
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: user-service-users
+          uri: http://user-service:8081
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: AuthenticationFilter
+            - name: LoggingFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # Product Service Routes
+        - id: product-service
+          uri: http://product-service:8082
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - name: LoggingFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: product-service-shipping
+          uri: http://product-service:8082
+          predicates:
+            - Path=/api/shipping/**
+          filters:
+            - name: SSRFProtectionFilter
+            - name: LoggingFilter
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        - id: product-service-warranty
+          uri: http://product-service:8082
+          predicates:
+            - Path=/api/warranty/**
+          filters:
+            - name: SSRFProtectionFilter
+            - name: LoggingFilter
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # Inventory Service Routes
+        - id: inventory-service
+          uri: http://inventory-service:8083
+          predicates:
+            - Path=/api/inventory/**
+          filters:
+            - name: LoggingFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+        
+        # Order Service Routes
+        - id: order-service
+          uri: http://order-service:8084
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - name: AuthenticationFilter
+            - name: LoggingFilter
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
+      
+      # Default Filters applied to all routes
+      default-filters:
+        - AddResponseHeader=X-Gateway-Version, 1.0.0
+        - AddResponseHeader=X-Powered-By, Spring Cloud Gateway
+
+  # Redis Configuration for Rate Limiting
+  data:
+    redis:
+      host: redis
+      port: 6379
+      timeout: 2000ms
+
+# JWT Configuration (same as user-service)
+jwt:
+  secret: mySecretKey123456789012345678901234567890
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.microservice.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

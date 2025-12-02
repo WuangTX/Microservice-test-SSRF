@@ -10,7 +10,6 @@ function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [checkPriceUrl, setCheckPriceUrl] = useState('');
   const [reviewUrl, setReviewUrl] = useState('');
-  const [purchaseCallback, setPurchaseCallback] = useState('');
 
   useEffect(() => {
     loadProduct();
@@ -20,11 +19,13 @@ function ProductDetail() {
     try {
       const response = await productServiceAPI.getProductById(id);
       setProduct(response.data);
-      if (response.data.sizes && response.data.sizes.length > 0) {
-        const firstSize = response.data.sizes[0];
-        setSelectedSize(firstSize.size);
-        setQuantity(firstSize.quantity);
-        console.log('Initial size and quantity:', firstSize);
+      
+      // Dùng inventory từ inventory-service (đã được merge vào response.data)
+      if (response.data.inventory && Object.keys(response.data.inventory).length > 0) {
+        const firstSize = Object.keys(response.data.inventory)[0];
+        setSelectedSize(firstSize);
+        setQuantity(response.data.inventory[firstSize]);
+        console.log('Initial size and quantity from inventory:', firstSize, response.data.inventory[firstSize]);
       }
 
       // TỰ ĐỘNG gọi check_price và fetch_review khi load product
@@ -68,17 +69,17 @@ function ProductDetail() {
   const handleSizeChange = async (size) => {
     setSelectedSize(size);
     
-    // Get quantity from product sizes (from Product Service database)
-    const sizeObj = product.sizes.find(s => s.size === size);
-    if (sizeObj) {
-      setQuantity(sizeObj.quantity);
-      console.log(`Size ${size} quantity from product:`, sizeObj.quantity);
+    // Get quantity from inventory (from Inventory Service - real-time data)
+    if (product.inventory && product.inventory[size] !== undefined) {
+      setQuantity(product.inventory[size]);
+      console.log(`Size ${size} quantity from inventory:`, product.inventory[size]);
     } else {
       setQuantity(0);
+      console.log(`Size ${size} not found in inventory`);
     }
   };
 
-  // Purchase with webhook callback
+  // Purchase product
   const handlePurchase = async () => {
     if (!selectedSize) {
       alert('Please select a size');
@@ -91,11 +92,6 @@ function ProductDetail() {
         size: selectedSize,
         quantity: 1
       };
-
-      // Add webhook callback URL if provided
-      if (purchaseCallback) {
-        purchaseData.callback_url = purchaseCallback;
-      }
 
       console.log('Purchase request:', purchaseData);
       const response = await inventoryServiceAPI.purchase(purchaseData);
@@ -160,17 +156,18 @@ function ProductDetail() {
       <p>{product.description}</p>
       <p className="price">${product.price}</p>
 
-      {product.sizes && product.sizes.length > 0 && (
+      {product.inventory && Object.keys(product.inventory).length > 0 && (
         <div className="size-selector">
           <h3>Select Size:</h3>
           <div className="size-buttons">
-            {product.sizes.map((sizeObj) => (
+            {Object.entries(product.inventory).map(([size, stock]) => (
               <button
-                key={sizeObj.size}
-                className={`size-btn ${selectedSize === sizeObj.size ? 'active' : ''}`}
-                onClick={() => handleSizeChange(sizeObj.size)}
+                key={size}
+                className={`size-btn ${selectedSize === size ? 'active' : ''} ${stock === 0 ? 'out-of-stock' : ''}`}
+                onClick={() => handleSizeChange(size)}
+                disabled={stock === 0}
               >
-                {sizeObj.size}
+                {size} ({stock})
               </button>
             ))}
           </div>
@@ -184,17 +181,9 @@ function ProductDetail() {
         </div>
       )}
 
-      {/* Webhook Notification Feature */}
-      <div className="webhook-feature">
-        <h4>� Webhook Notification</h4>
-        <p>
-          Nhập URL webhook của bạn để nhận thông báo về thay đổi tồn kho.
-          Sau khi mua hàng, hệ thống sẽ tự động gửi thông tin cập nhật đến URL bạn cung cấp.
-        </p>
-
-        {/* REALISTIC SSRF FEATURES */}
-        <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
-          <h4>🛍️ Tính năng mua sắm thông minh</h4>
+      {/* REALISTIC SSRF FEATURES */}
+      <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+        <h4>🛍️ Tính năng mua sắm thông minh</h4>
           
           {/* So sánh giá */}
           <div className="form-group" style={{ marginBottom: '1rem' }}>
@@ -233,44 +222,13 @@ function ProductDetail() {
           </div>
         </div>
 
-        <div className="form-group">
-          <label>Webhook URL (Optional):</label>
-          <input
-            type="text"
-            value={purchaseCallback}
-            onChange={(e) => setPurchaseCallback(e.target.value)}
-            placeholder="https://your-domain.com/api/webhook/inventory-update"
-          />
-          <small style={{ display: 'block', marginTop: '0.3rem', color: '#666' }}>
-            💡 Ví dụ: <code>https://webhook.site/your-unique-id</code>
-          </small>
-          <small style={{ display: 'block', marginTop: '0.2rem', color: '#666' }}>
-            Server sẽ gửi GET request đến URL này với thông tin cập nhật tồn kho
-          </small>
-        </div>
-
         <button 
           onClick={handlePurchase} 
           className="btn btn-primary"
           disabled={quantity === 0}
         >
-          {purchaseCallback ? '🔔 Purchase with Notification' : '🛒 Purchase'}
+           Purchase
         </button>
-        
-        <div style={{ marginTop: '1rem', fontSize: '0.85rem', background: '#e7f3ff', padding: '0.8rem', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
-          <p style={{ margin: '0 0 0.5rem 0', fontWeight: '500' }}>
-            ℹ️ <strong>Cách sử dụng Webhook:</strong>
-          </p>
-          <ol style={{ margin: '0.3rem 0', paddingLeft: '1.5rem' }}>
-            <li>Tạo endpoint webhook trên server của bạn</li>
-            <li>Nhập URL webhook vào ô bên trên</li>
-            <li>Khi mua hàng, bạn sẽ nhận POST request với thông tin tồn kho</li>
-          </ol>
-          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: '#0066cc' }}>
-            🧪 Test webhook: Sử dụng <a href="https://webhook.site" target="_blank" rel="noopener noreferrer">webhook.site</a> để xem request
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

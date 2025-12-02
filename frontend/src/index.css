@@ -38,23 +38,98 @@ code {
   font-size: 1.5rem;
 }
 
-.navbar nav {
+.navbar > div {
   display: flex;
   gap: 1rem;
+  align-items: center;
 }
 
-.navbar a, .navbar button {
+.navbar a {
   color: white;
   text-decoration: none;
   padding: 0.5rem 1rem;
   border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.navbar a:hover {
+  background-color: #555;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-menu-trigger {
+  color: white;
   background: none;
   border: none;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-menu-trigger:hover {
+  background-color: #555;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 200px;
+  z-index: 1000;
+  display: none;
+}
+
+.user-menu-dropdown.show {
+  display: block;
+}
+
+.user-menu-dropdown a,
+.user-menu-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  color: #333;
+  text-decoration: none;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #eee;
+}
+
+.user-menu-dropdown a:last-child,
+.user-menu-dropdown button:last-child {
+  border-bottom: none;
+}
+
+.user-menu-dropdown a:hover,
+.user-menu-dropdown button:hover {
+  background-color: #f5f5f5;
+}
+
+.navbar button.btn-logout {
+  color: white;
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.3s;
 }
 
-.navbar a:hover, .navbar button:hover {
+.navbar button.btn-logout:hover {
   background-color: #555;
 }
 
@@ -129,14 +204,14 @@ code {
 
 .form-group input, .form-group textarea, .form-group select {
   width: 100%;
+  padding: 0.875rem;
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%;
   padding: 0.75rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
-}
-
-.form-group textarea {
-  resize: vertical;
+} resize: vertical;
   min-height: 100px;
 }
 
@@ -150,20 +225,20 @@ code {
 }
 
 .btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+.btn-primary {
   background-color: #4CAF50;
   color: white;
 }
 
 .btn-primary:hover {
   background-color: #45a049;
-}
-
-.btn-danger {
-  background-color: #f44336;
-  color: white;
-}
-
-.btn-danger:hover {
+}btn-danger:hover {
   background-color: #da190b;
 }
 
@@ -272,21 +347,21 @@ code {
 }
 
 .alert-error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #fee;
+  color: #c33;
+  border: 2px solid #fcc;
+  font-weight: 500;
 }
 
 .ssrf-demo {
   margin-top: 2rem;
   padding: 1.5rem;
   background-color: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 4px;
-}
-
-.ssrf-demo h4 {
-  color: #856404;
+.alert-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+} color: #856404;
   margin-bottom: 1rem;
 }
 

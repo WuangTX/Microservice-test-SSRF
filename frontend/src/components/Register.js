@@ -22,11 +22,12 @@ function Register({ setUser }) {
       };
       
       const response = await authAPI.register(registerData);
-      const { token, username: user, role } = response.data;
+      const { token, username: user, role, userId } = response.data;
       
       localStorage.setItem('token', token);
       localStorage.setItem('username', user);
       localStorage.setItem('role', role);
+      localStorage.setItem('userId', userId);
       
       setUser({ token, username: user, role });
       navigate('/');

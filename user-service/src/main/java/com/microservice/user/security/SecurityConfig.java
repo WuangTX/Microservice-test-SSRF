@@ -41,12 +41,19 @@ public class SecurityConfig {
                 .requestMatchers("/api/files/**").permitAll() // Public file access
                 .requestMatchers("/api/users/delete/**").permitAll() // VULNERABLE endpoint
                 .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN") // Only admin can see all users
-                .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated() // Any authenticated user can see specific user
-                .requestMatchers(HttpMethod.POST, "/api/users/**/avatar").authenticated() // Avatar upload for authenticated users
-                .requestMatchers(HttpMethod.POST, "/api/users/**/avatar/upload").authenticated() // File upload for authenticated users
-                .requestMatchers(HttpMethod.GET, "/api/users/me/avatar/validate").authenticated() // SSRF vulnerable endpoint - GET
-                .requestMatchers(HttpMethod.POST, "/api/users/me/avatar/validate").authenticated() // SSRF vulnerable endpoint - POST
-                .requestMatchers("/api/users/**").hasRole("ADMIN") // Other user operations need admin
+                .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll() // Allow inter-service communication for specific user by ID
+                // Current user endpoints - MUST be before /api/users/** admin rule
+                .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/users/me").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/users/me/avatar/upload").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/users/me/avatar/validate").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/users/me/avatar/validate").authenticated()
+                // Avatar endpoints for specific users (SSRF vulnerable)
+                .requestMatchers(HttpMethod.POST, "/api/users/*/avatar").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/users/*/avatar").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/users/*/avatar/upload").authenticated()
+                // Admin-only rules (catch-all for other /api/users/** endpoints)
+                .requestMatchers("/api/users/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

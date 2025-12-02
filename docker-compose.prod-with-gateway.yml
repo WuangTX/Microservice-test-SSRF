@@ -75,6 +75,22 @@ services:
       timeout: 10s
       retries: 5
 
+  # ============================================================
+  # REDIS - For API Gateway Rate Limiting
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - microservice-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   user-service:
     image: tranquang04/user-service:latest
     container_name: user-service
@@ -145,40 +161,35 @@ services:
     networks:
       - microservice-network
 
-  frontend:
-    image: tranquang04/frontend:latest
-    container_name: frontend
-    ports:
-      - "3000:80"
-    environment:
-      REACT_APP_API_URL: ""
-      CHOKIDAR_USEPOLLING: "true"
-    networks:
-      - microservice-network
-
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
-    networks:
-      - microservice-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
+  # ============================================================
+  # API GATEWAY - Centralized Security & SSRF Protection
+  # ============================================================
   api-gateway:
-    build: ./api-gateway
     image: tranquang04/api-gateway:latest
     container_name: api-gateway
     ports:
       - "8080:8080"
     environment:
-      JWT_SECRET: mySecretKey123456789012345678901234567890
+      # JWT Configuration (same secret as user-service)
+      JWT_SECRET: "your-256-bit-secret-key-change-this-in-production-environment"
+      
+      # Service URLs
+      USER_SERVICE_URL: http://user-service:8081
+      PRODUCT_SERVICE_URL: http://product-service:8082
+      INVENTORY_SERVICE_URL: http://inventory-service:8083
+      ORDER_SERVICE_URL: http://order-service:8084
+      
+      # Redis Configuration for Rate Limiting
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      
+      # Spring Boot Configuration
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: "-Xmx512m -Xms256m -XX:MaxMetaspaceSize=128m -XX:+UseG1GC"
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     depends_on:
       redis:
         condition: service_healthy
@@ -192,7 +203,22 @@ services:
         condition: service_started
     networks:
       - microservice-network
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  frontend:
+    image: tranquang04/frontend:latest
+    container_name: frontend
+    ports:
+      - "3000:80"
+    environment:
+      REACT_APP_API_URL: ""
+      CHOKIDAR_USEPOLLING: "true"
+    networks:
+      - microservice-network
 
 volumes:
   postgres_user_data:

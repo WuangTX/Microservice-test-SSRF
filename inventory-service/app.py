@@ -1,59 +1,191 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 import requests
 import os
 
 app = Flask(__name__)
 CORS(app)
 
-# Mock inventory data
-inventory = {
-    1: {'S': 10, 'M': 15, 'L': 20, 'XL': 5},
-    2: {'S': 8, 'M': 12, 'L': 18, 'XL': 10},
-    3: {'S': 5, 'M': 10, 'L': 15, 'XL': 7},
-    4: {'S': 12, 'M': 20, 'L': 25, 'XL': 15},
-    5: {'S': 6, 'M': 14, 'L': 16, 'XL': 8},
-}
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    'DATABASE_URL',
+    'postgresql://inventoryservice:password123@postgres-inventory:5432/inventoryservice_db'
+)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# Product Service URL for initial sync
+PRODUCT_SERVICE_URL = os.getenv('PRODUCT_SERVICE_URL', 'http://product-service:8082')
+
+
+# Database Model
+class Inventory(db.Model):
+    __tablename__ = 'inventory'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, nullable=False, index=True)
+    size = db.Column(db.String(10), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        db.UniqueConstraint('product_id', 'size', name='uix_product_size'),
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'size': self.size,
+            'quantity': self.quantity,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+# Create tables and sync initial data
+with app.app_context():
+    try:
+        db.create_all()
+        print("[INVENTORY_SERVICE] Database tables created/verified")
+    except Exception as e:
+        print(f"[INVENTORY_SERVICE] Database tables already exist or error: {str(e)}")
+    
+    # Sync initial data from product-service if inventory is empty
+    try:
+        inventory_count = Inventory.query.count()
+        print(f"[INVENTORY_SERVICE] Current inventory count: {inventory_count}")
+        
+        if inventory_count == 0:
+            print("[INVENTORY_SERVICE] Syncing initial data from product-service...")
+            try:
+                response = requests.get(f'{PRODUCT_SERVICE_URL}/api/products/', timeout=10)
+                if response.ok:
+                    products = response.json()
+                    for product in products:
+                        product_id = product['id']
+                        sizes = product.get('sizes', [])
+                        
+                        for size_obj in sizes:
+                            inventory_item = Inventory(
+                                product_id=product_id,
+                                size=size_obj['size'],
+                                quantity=size_obj['quantity']
+                            )
+                            db.session.add(inventory_item)
+                    
+                    db.session.commit()
+                    print(f"[INVENTORY_SERVICE] ✅ SYNC SUCCESS: Synced {Inventory.query.count()} inventory records")
+                else:
+                    print(f"[INVENTORY_SERVICE] Failed to sync from product-service: {response.status_code}")
+            except Exception as e:
+                db.session.rollback()
+                print(f"[INVENTORY_SERVICE] Error syncing initial data: {str(e)}")
+        else:
+            print(f"[INVENTORY_SERVICE] ✅ Database already has {inventory_count} inventory records, skipping sync")
+    except Exception as e:
+        print(f"[INVENTORY_SERVICE] Error checking inventory count: {str(e)}")
+
+
+def get_inventory_dict(product_id):
+    """
+    Get inventory for a product from database
+    Returns dict format: {"S": 10, "M": 15, ...}
+    """
+    inventory_items = Inventory.query.filter_by(product_id=product_id).all()
+    
+    inventory_dict = {}
+    for item in inventory_items:
+        inventory_dict[item.size] = item.quantity
+    
+    return inventory_dict
 
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy'}), 200
+    return jsonify({'status': 'healthy', 'inventory_count': Inventory.query.count()}), 200
+
+
+@app.route('/api/inventory/sync', methods=['POST'])
+def sync_from_product_service():
+    """
+    Sync inventory data from product-service
+    Can be called manually or scheduled
+    """
+    try:
+        print("[SYNC] Starting sync from product-service...")
+        response = requests.get(f'{PRODUCT_SERVICE_URL}/api/products/', timeout=10)
+        
+        if not response.ok:
+            return jsonify({
+                'error': 'Failed to fetch products from product-service',
+                'status_code': response.status_code
+            }), 400
+        
+        products = response.json()
+        synced_count = 0
+        
+        for product in products:
+            product_id = product['id']
+            sizes = product.get('sizes', [])
+            
+            for size_obj in sizes:
+                size = size_obj['size']
+                quantity = size_obj['quantity']
+                
+                # Find or create inventory record
+                inventory_item = Inventory.query.filter_by(product_id=product_id, size=size).first()
+                
+                if inventory_item:
+                    # Update existing
+                    inventory_item.quantity = quantity
+                    inventory_item.updated_at = datetime.utcnow()
+                else:
+                    # Create new
+                    inventory_item = Inventory(
+                        product_id=product_id,
+                        size=size,
+                        quantity=quantity
+                    )
+                    db.session.add(inventory_item)
+                
+                synced_count += 1
+        
+        db.session.commit()
+        print(f"[SYNC] Synced {synced_count} inventory records")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Synced {synced_count} inventory records',
+            'total_inventory': Inventory.query.count()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[SYNC] Error: {str(e)}")
+        return jsonify({
+            'error': 'Sync failed',
+            'details': str(e)
+        }), 500
 
 
 @app.route('/api/inventory/<int:product_id>/<size>', methods=['GET'])
 def get_inventory(product_id, size):
     """
-    Get inventory for a specific product and size
-    Supports callback_url parameter for webhook notifications
+    Get inventory for a specific product and size from database
     """
-    # Check if callback_url is provided
-    callback_url = request.args.get('callback_url')
+    inventory_item = Inventory.query.filter_by(product_id=product_id, size=size).first()
     
-    if callback_url:
-        try:
-            # Make request to callback URL to notify about inventory check
-            print(f"[WEBHOOK] Sending notification to: {callback_url}")
-            
-            # Determine HTTP method based on URL pattern
-            if '/delete/' in callback_url:
-                response = requests.delete(callback_url, timeout=5)
-            else:
-                response = requests.get(callback_url, timeout=5)
-                
-            print(f"[WEBHOOK] Response status: {response.status_code}")
-            print(f"[WEBHOOK] Response body: {response.text[:200]}")
-        except Exception as e:
-            print(f"[WEBHOOK] Error sending notification: {str(e)}")
-    
-    # Return inventory data
-    if product_id in inventory and size in inventory[product_id]:
-        quantity = inventory[product_id][size]
+    if inventory_item:
         return jsonify({
             'product_id': product_id,
             'size': size,
-            'quantity': quantity,
-            'available': quantity > 0
+            'quantity': inventory_item.quantity,
+            'available': inventory_item.quantity > 0
         }), 200
     else:
         return jsonify({
@@ -66,11 +198,15 @@ def get_inventory(product_id, size):
 
 @app.route('/api/inventory/<int:product_id>', methods=['GET'])
 def get_all_inventory(product_id):
-    """Get all inventory for a product"""
-    if product_id in inventory:
+    """
+    Get all inventory for a product from database
+    """
+    inventory_dict = get_inventory_dict(product_id)
+    
+    if inventory_dict:
         return jsonify({
             'product_id': product_id,
-            'inventory': inventory[product_id]
+            'inventory': inventory_dict
         }), 200
     else:
         return jsonify({
@@ -82,107 +218,107 @@ def get_all_inventory(product_id):
 @app.route('/api/inventory/<int:product_id>/<size>', methods=['PUT'])
 def update_inventory(product_id, size):
     """
-    Update inventory for a specific product and size
-    Supports callback_url to notify external systems after inventory update
+    Update inventory for a specific product and size in database
+    Supports two modes:
+    - set: Set absolute quantity (for admin)
+    - add: Add to current quantity (for order cancellation)
     """
     data = request.get_json()
     quantity = data.get('quantity', 0)
-    callback_url = data.get('callback_url')  # Webhook notification URL
+    mode = data.get('mode', 'set')  # 'set' or 'add'
     
-    if product_id not in inventory:
-        inventory[product_id] = {}
-    
-    # Update inventory
-    old_quantity = inventory[product_id].get(size, 0)
-    inventory[product_id][size] = quantity
-    
-    # Send webhook notification if callback URL provided
-    if callback_url:
-        try:
-            print(f"[WEBHOOK] Sending update notification to: {callback_url}")
+    try:
+        # Find or create inventory record
+        inventory_item = Inventory.query.filter_by(product_id=product_id, size=size).first()
+        
+        if not inventory_item:
+            # Create new record
+            inventory_item = Inventory(
+                product_id=product_id,
+                size=size,
+                quantity=quantity if mode == 'set' else 0 + quantity
+            )
+            db.session.add(inventory_item)
+        else:
+            # Update existing record
+            if mode == 'add':
+                inventory_item.quantity += quantity
+            else:
+                inventory_item.quantity = quantity
             
-            # Send inventory update notification
-            callback_data = {
-                'product_id': product_id,
-                'size': size,
-                'old_quantity': old_quantity,
-                'new_quantity': quantity,
-                'timestamp': 'now'
-            }
-            
-            # POST inventory update to webhook URL
-            response = requests.post(callback_url, json=callback_data, timeout=5)
-            print(f"[WEBHOOK] Notification response: {response.status_code}")
-            
-        except Exception as e:
-            print(f"[WEBHOOK] Error sending notification: {str(e)}")
-    
-    return jsonify({
-        'product_id': product_id,
-        'size': size,
-        'quantity': quantity,
-        'message': 'Inventory updated successfully'
-    }), 200
+            inventory_item.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        print(f"[INVENTORY_UPDATE] Product {product_id} size {size}: quantity={inventory_item.quantity} (mode={mode})")
+        
+        return jsonify({
+            'product_id': product_id,
+            'size': size,
+            'quantity': inventory_item.quantity,
+            'mode': mode,
+            'message': 'Inventory updated successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[INVENTORY_UPDATE] Error: {str(e)}")
+        return jsonify({
+            'error': 'Failed to update inventory',
+            'details': str(e)
+        }), 500
 
 
 @app.route('/api/inventory/purchase', methods=['POST'])
 def purchase_product():
     """
-    Purchase product - decrease inventory
-    Supports callback_url for webhook notifications to external systems
-    Common use case: Notify payment gateway or warehouse management system
+    Purchase product - decrease inventory in database
     """
     data = request.get_json()
     product_id = data.get('product_id')
     size = data.get('size')
     quantity_to_buy = data.get('quantity', 1)
-    callback_url = data.get('callback_url')  # Webhook URL for notifications
     
-    if product_id not in inventory or size not in inventory[product_id]:
-        return jsonify({'error': 'Product not found'}), 404
-    
-    current_stock = inventory[product_id][size]
-    
-    if current_stock < quantity_to_buy:
+    try:
+        # Find inventory record
+        inventory_item = Inventory.query.filter_by(product_id=product_id, size=size).first()
+        
+        if not inventory_item:
+            return jsonify({'error': 'Product not found'}), 404
+        
+        current_stock = inventory_item.quantity
+        
+        if current_stock < quantity_to_buy:
+            return jsonify({
+                'error': 'Insufficient stock',
+                'available': current_stock,
+                'requested': quantity_to_buy
+            }), 400
+        
+        # Decrease inventory
+        inventory_item.quantity -= quantity_to_buy
+        inventory_item.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        print(f"[PURCHASE] Product {product_id} size {size}: {current_stock} -> {inventory_item.quantity}")
+        
         return jsonify({
-            'error': 'Insufficient stock',
-            'available': current_stock,
-            'requested': quantity_to_buy
-        }), 400
-    
-    # Decrease inventory
-    inventory[product_id][size] -= quantity_to_buy
-    new_stock = inventory[product_id][size]
-    
-    # Send webhook notification if callback URL provided
-    # Common scenario: Notify payment gateway or warehouse after inventory reduction
-    if callback_url:
-        try:
-            print(f"[WEBHOOK] Sending purchase notification to: {callback_url}")
-            
-            purchase_data = {
-                'event': 'inventory.reduced',
-                'product_id': product_id,
-                'size': size,
-                'quantity_purchased': quantity_to_buy,
-                'remaining_stock': new_stock
-            }
-            
-            # Send GET request to webhook URL with purchase information
-            response = requests.get(callback_url, timeout=5)
-            print(f"[WEBHOOK] Purchase notification response: {response.status_code}")
-            
-        except Exception as e:
-            print(f"[WEBHOOK] Error sending purchase notification: {str(e)}")
-    
-    return jsonify({
-        'success': True,
-        'product_id': product_id,
-        'size': size,
-        'quantity_purchased': quantity_to_buy,
-        'new_quantity': new_stock,
-        'message': 'Purchase successful'
-    }), 200
+            'success': True,
+            'product_id': product_id,
+            'size': size,
+            'quantity_purchased': quantity_to_buy,
+            'new_quantity': inventory_item.quantity,
+            'message': 'Purchase successful'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[PURCHASE] Error: {str(e)}")
+        return jsonify({
+            'error': 'Failed to purchase',
+            'details': str(e)
+        }), 500
 
 
 if __name__ == '__main__':

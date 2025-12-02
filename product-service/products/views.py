@@ -17,6 +17,39 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update']:
             return ProductCreateSerializer
         return ProductSerializer
+    
+    def retrieve(self, request, *args, **kwargs):
+        """
+        IMPROVED: Get product detail with real-time inventory from inventory-service
+        """
+        product = self.get_object()
+        serializer = self.get_serializer(product)
+        product_data = serializer.data
+        
+        # 🔥 INTER-SERVICE CALL: Get inventory from inventory-service
+        try:
+            print(f"[PRODUCT_DETAIL] Calling inventory-service for product {product.id}")
+            inventory_response = requests.get(
+                f'http://inventory-service:8083/api/inventory/{product.id}',
+                timeout=3
+            )
+            
+            if inventory_response.ok:
+                inventory_data = inventory_response.json()
+                product_data['inventory'] = inventory_data.get('inventory', {})
+                product_data['inventory_status'] = 'available'
+                print(f"[PRODUCT_DETAIL] Got inventory: {inventory_data}")
+            else:
+                product_data['inventory'] = {}
+                product_data['inventory_status'] = 'unavailable'
+                print(f"[PRODUCT_DETAIL] Inventory service returned {inventory_response.status_code}")
+                
+        except Exception as e:
+            print(f"[PRODUCT_DETAIL] Error calling inventory-service: {str(e)}")
+            product_data['inventory'] = {}
+            product_data['inventory_status'] = 'error'
+        
+        return Response(product_data)
 
     @action(detail=True, methods=['get'])
     def sizes(self, request, pk=None):
