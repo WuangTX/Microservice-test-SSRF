@@ -39,7 +39,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/files/**").permitAll() // Public file access
-                .requestMatchers("/api/users/delete/**").permitAll() // VULNERABLE endpoint
                 .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN") // Only admin can see all users
                 .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll() // Allow inter-service communication for specific user by ID
                 // Current user endpoints - MUST be before /api/users/** admin rule
@@ -52,6 +51,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users/*/avatar").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/users/*/avatar").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/users/*/avatar/upload").authenticated()
+                // VULNERABLE: Delete endpoint allows any authenticated user
+                .requestMatchers(HttpMethod.DELETE, "/api/users/delete/*").authenticated()
                 // Admin-only rules (catch-all for other /api/users/** endpoints)
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
                 .anyRequest().authenticated()

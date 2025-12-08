@@ -272,30 +272,20 @@ public class UserController {
         }
     }
 
-    // VULNERABLE endpoint - Only accessible from Docker internal network (for SSRF demo)
-    // This simulates an internal-only API that should not be exposed to public
+    // VULNERABLE endpoint - Broken Access Control
+    // Any authenticated user can delete other users (should be admin-only)
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteUser(@PathVariable Long id, HttpServletRequest request) {
-        // Get client IP address
-        String clientIp = getClientIp(request);
+    public ResponseEntity<String> deleteUser(@PathVariable Long id, Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "anonymous";
         
-        System.out.println("🔍 Delete request from IP: " + clientIp);
-        
-        // Only allow requests from Docker internal network (172.x.x.x or 10.x.x.x)
-        if (!isInternalNetwork(clientIp)) {
-            System.out.println("❌ BLOCKED: Request from external network: " + clientIp);
-            return ResponseEntity.status(403).body(
-                "⛔ Access Denied: This endpoint is only accessible from internal network. " +
-                "Your IP: " + clientIp
-            );
-        }
-        
-        System.out.println("✅ ALLOWED: Request from internal network: " + clientIp);
+        System.out.println("🔍 Delete request - User: " + username + " | Target ID: " + id);
         
         try {
             userService.deleteUser(id);
-            return ResponseEntity.ok("User deleted successfully from internal network");
+            System.out.println("✅ User " + id + " deleted by " + username);
+            return ResponseEntity.ok("User deleted successfully");
         } catch (Exception e) {
+            System.err.println("❌ Error deleting user: " + e.getMessage());
             return ResponseEntity.badRequest().body("Error deleting user: " + e.getMessage());
         }
     }

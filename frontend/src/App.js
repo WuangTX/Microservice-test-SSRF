@@ -8,11 +8,6 @@ import AdminProducts from './components/AdminProducts';
 import AdminUsers from './components/AdminUsers';
 import UserProfile from './components/UserProfile';
 import NotFound from './components/NotFound';
-import ShippingTracking from './components/ShippingTracking';
-import SupplierVerification from './components/SupplierVerification';
-import WarrantyCheck from './components/WarrantyCheck';
-import ProductImageLoader from './components/ProductImageLoader';
-import RestockNotification from './components/RestockNotification';
 import Checkout from './components/Checkout';
 import OrderHistory from './components/OrderHistory';
 
@@ -68,11 +63,6 @@ function App() {
             <Link to="/">Sản phẩm</Link>
             <Link to="/checkout">Đặt hàng</Link>
             <Link to="/orders">Đơn hàng của tôi</Link>
-            <Link to="/shipping">Tra cứu vận chuyển</Link>
-            <Link to="/supplier">Xác thực</Link>
-            <Link to="/warranty">Bảo hành</Link>
-            <Link to="/images">Thư viện ảnh</Link>
-            <Link to="/notifications">Thông báo</Link>
             {user && user.role === 'ADMIN' && (
               <>
                 <Link to="/admin/products">Quản lý sản phẩm</Link>
@@ -111,11 +101,6 @@ function App() {
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/checkout" element={user ? <Checkout /> : <Navigate to="/login" />} />
             <Route path="/orders" element={user ? <OrderHistory /> : <Navigate to="/login" />} />
-            <Route path="/shipping" element={<ShippingTracking />} />
-            <Route path="/supplier" element={<SupplierVerification />} />
-            <Route path="/warranty" element={<WarrantyCheck />} />
-            <Route path="/images" element={<ProductImageLoader />} />
-            <Route path="/notifications" element={<RestockNotification />} />
             <Route path="/login" element={<Login setUser={setUser} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
             <Route 

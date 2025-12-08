@@ -8,7 +8,6 @@ function ProductDetail() {
   const [selectedSize, setSelectedSize] = useState('');
   const [quantity, setQuantity] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [checkPriceUrl, setCheckPriceUrl] = useState('');
   const [reviewUrl, setReviewUrl] = useState('');
 
   useEffect(() => {
@@ -28,13 +27,8 @@ function ProductDetail() {
         console.log('Initial size and quantity from inventory:', firstSize, response.data.inventory[firstSize]);
       }
 
-      // TỰ ĐỘNG gọi check_price và fetch_review khi load product
+      // TỰ ĐỘNG gọi fetch_review khi load product
       // Để security scanner có thể thấy SSRF parameters trong network traffic
-      if (response.data.price_comparison_url) {
-        console.log('Auto-checking price from:', response.data.price_comparison_url);
-        autoCheckPrice(response.data.price_comparison_url);
-      }
-      
       if (response.data.external_review_url) {
         console.log('Auto-fetching review from:', response.data.external_review_url);
         autoFetchReview(response.data.external_review_url);
@@ -43,16 +37,6 @@ function ProductDetail() {
       console.error('Error loading product:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // TỰ ĐỘNG check price khi load product (không cần user click)
-  const autoCheckPrice = async (url) => {
-    try {
-      await productServiceAPI.checkPrice(id, url);
-      console.log('Auto price check completed');
-    } catch (error) {
-      console.error('Auto price check failed:', error);
     }
   };
 
@@ -103,22 +87,6 @@ function ProductDetail() {
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
       alert(`Purchase failed: ${error.response?.data?.error || error.message}`);
-    }
-  };
-
-  // REALISTIC SSRF: So sánh giá từ website khác
-  const checkPrice = async () => {
-    if (!checkPriceUrl) {
-      alert('Vui lòng nhập URL website để so sánh giá');
-      return;
-    }
-
-    try {
-      const response = await productServiceAPI.checkPrice(id, checkPriceUrl);
-      alert(`Giá từ website khác: ${response.data.message}`);
-    } catch (error) {
-      console.error('Error checking price:', error);
-      alert('Không thể kiểm tra giá từ website này');
     }
   };
 
@@ -184,24 +152,6 @@ function ProductDetail() {
       {/* REALISTIC SSRF FEATURES */}
       <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
         <h4>🛍️ Tính năng mua sắm thông minh</h4>
-          
-          {/* So sánh giá */}
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label>🔍 So sánh giá từ website khác:</label>
-            <input
-              type="text"
-              value={checkPriceUrl}
-              onChange={(e) => setCheckPriceUrl(e.target.value)}
-              placeholder="https://shopee.vn/product/123 hoặc https://tiki.vn/product/456"
-              style={{ width: '100%', marginRight: '10px', marginBottom: '5px' }}
-            />
-            <button onClick={checkPrice} className="btn btn-secondary" style={{ fontSize: '0.9rem' }}>
-              So sánh giá
-            </button>
-            <small style={{ display: 'block', color: '#666' }}>
-              Nhập URL sản phẩm tương tự từ các website khác để so sánh giá
-            </small>
-          </div>
 
           {/* Lấy review */}
           <div className="form-group" style={{ marginBottom: '1rem' }}>

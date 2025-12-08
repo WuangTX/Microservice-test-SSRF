@@ -94,22 +94,8 @@ export const productServiceAPI = {
   deleteProduct: (id) => productAPI.delete(`/products/${id}/`),
   
   // REALISTIC SSRF ENDPOINTS
-  checkPrice: (productId, compareUrl) => 
-    productAPI.post(`/products/${productId}/check_price/`, { compare_url: compareUrl }),
   fetchReview: (productId, reviewUrl) => 
     productAPI.post(`/products/${productId}/fetch_review/`, { review_url: reviewUrl }),
-  
-  // NEW E-COMMERCE SSRF ENDPOINTS
-  trackShipment: (trackingUrl) => 
-    productAPI.post('/shipping/track/', { tracking_url: trackingUrl }),
-  verifySupplier: (productId, supplierUrl) => 
-    productAPI.post('/products/verify-supplier/', { product_id: productId, supplier_url: supplierUrl }),
-  checkWarranty: (productId, warrantyUrl) => 
-    productAPI.post('/warranty/check/', { product_id: productId, warranty_url: warrantyUrl }),
-  loadProductImage: (productId, imageUrl) => 
-    productAPI.post('/products/load-image/', { product_id: productId, image_url: imageUrl }),
-  notifyRestock: (productId, notificationEndpoint) => 
-    productAPI.post('/products/notify-restock/', { product_id: productId, notification_endpoint: notificationEndpoint }),
 };
 
 // Inventory API (VULNERABLE TO SSRF)

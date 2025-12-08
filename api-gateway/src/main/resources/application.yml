@@ -62,24 +62,6 @@ spring:
                 redis-rate-limiter.burstCapacity: 60
             - RewritePath=/api/(?<segment>.*), /api/$\{segment}
         
-        - id: product-service-shipping
-          uri: http://product-service:8082
-          predicates:
-            - Path=/api/shipping/**
-          filters:
-            - name: SSRFProtectionFilter
-            - name: LoggingFilter
-            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
-        
-        - id: product-service-warranty
-          uri: http://product-service:8082
-          predicates:
-            - Path=/api/warranty/**
-          filters:
-            - name: SSRFProtectionFilter
-            - name: LoggingFilter
-            - RewritePath=/api/(?<segment>.*), /api/$\{segment}
-        
         # Inventory Service Routes
         - id: inventory-service
           uri: http://inventory-service:8083
