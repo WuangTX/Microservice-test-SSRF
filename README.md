@@ -284,7 +284,7 @@ docker build -t tranquang04/api-gateway:latest .
 docker push tranquang04/api-gateway:latest
 
 # 2. Deploy lên server
-ssh -p 24700 quang@103.56.163.193
+ssh -p 24700 quang@{your-ip-server}
 cd ~/microservice-shop
 docker-compose -f docker-compose.prod.yml pull
 docker-compose -f docker-compose.prod.yml up -d
